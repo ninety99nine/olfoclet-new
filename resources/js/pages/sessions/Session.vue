@@ -90,19 +90,19 @@
                     <!-- Quick Stats -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
-                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                             <p class="text-sm text-slate-500">Duration</p>
                             <Skeleton v-if="isLoadingSession" width="w-16" class="shrink-0 mt-6"></Skeleton>
                             <p v-else class="text-2xl font-bold text-slate-900 mt-2">{{ formatDuration(session.total_duration_ms) }}</p>
                         </div>
 
-                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                             <p class="text-sm text-slate-500">Steps</p>
                             <Skeleton v-if="isLoadingSession" width="w-16" class="shrink-0 mt-6"></Skeleton>
                             <p v-else class="text-2xl font-bold text-indigo-600 mt-2">{{ session.total_steps }}</p>
                         </div>
 
-                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                             <p class="text-sm text-slate-500">Avg Wait</p>
                             <Skeleton v-if="isLoadingSession" width="w-16" class="shrink-0 mt-6"></Skeleton>
                             <p v-else class="text-2xl font-bold mt-2"
@@ -115,7 +115,7 @@
                             </p>
                         </div>
 
-                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                             <p class="text-sm text-slate-500">Device</p>
                             <Skeleton v-if="isLoadingSession" width="w-16" class="shrink-0 mt-6"></Skeleton>
                             <p v-else class="text-xl font-medium text-slate-900 mt-2 flex items-center gap-2">
@@ -128,7 +128,7 @@
                     </div>
 
                     <!-- USSD Flow Timeline -->
-                    <div class="rounded-xl border border-slate-200 overflow-hidden">
+                    <div class="rounded-2xl border border-slate-200 overflow-hidden">
 
                         <!-- Header -->
                         <div class="bg-white px-6 py-5 border-b border-slate-100 flex items-center justify-between shadow-xs">
@@ -155,109 +155,121 @@
                         </div>
 
                         <!-- Actual timeline -->
-                        <div v-else class="p-6">
+                        <div v-else class="p-8">
+
                             <div class="relative pl-10 md:pl-12">
 
                             <!-- Vertical timeline line -->
                             <div class="absolute left-5 md:left-6 top-0 bottom-0 w-0.5 bg-slate-200"></div>
 
-                            <div v-for="(step, index) in session.steps" :key="step.id || index" class="relative mb-10 last:mb-0">
+                                <div v-for="(step, index) in session.steps" :key="step.id || index" class="relative mb-10 last:mb-0">
 
-                                <!-- Step number circle -->
-                                <div class="absolute -left-11 -top-1 w-10 h-10 rounded-full bg-white border-4 border-slate-200 flex items-center justify-center font-bold text-slate-700 shadow-sm z-10">
-                                {{ index + 1 }}
-                                </div>
-
-                                <!-- Card -->
-                                <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm ml-2 md:ml-4 transition-all hover:shadow-md group relative">
-
-                                <!-- Header row -->
-                                <div class="flex items-start justify-between gap-4 mb-3">
-                                    <div>
-                                        <h3 class="font-medium text-slate-900">{{ step.step_title || 'Unnamed Step' }}</h3>
-                                        <p v-if="index == 0" class="text-xs text-slate-500 mt-0.5">
-                                            {{ formattedRelativeDate(step.created_at) }}
-                                        </p>
+                                    <!-- Step number circle -->
+                                    <div class="absolute -left-11 -top-1 w-10 h-10 rounded-full bg-white border-4 border-slate-200 flex items-center justify-center font-bold text-slate-700 shadow-sm z-10">
+                                    {{ index + 1 }}
                                     </div>
 
-                                    <!-- Status badges -->
-                                    <div class="flex flex-wrap gap-2 justify-end">
-                                        <span v-if="step.paginated" class="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-full font-medium">
-                                            Paginated · {{ step.page_number }} / {{ step.total_pages }}
-                                        </span>
+                                    <!-- Card -->
+                                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm ml-2 md:ml-4 transition-all hover:shadow-md group relative">
 
-                                        <span v-if="isLongestWait(step, session.steps)" class="bg-amber-50 text-amber-800 text-xs px-2.5 py-1 rounded-full font-semibold">
-                                            Slowest
-                                        </span>
-
-                                        <span v-if="session.steps.length == 1" class="bg-indigo-50 text-indigo-800 text-xs px-2.5 py-1 rounded-full font-semibold">
-                                            Only Response
-                                        </span>
-
-                                        <span v-if="!step.successful" class="bg-rose-50 text-rose-700 text-xs px-2.5 py-1 rounded-full font-medium">
-                                            Failed
-                                        </span>
-                                    </div>
-                                    <Button
-                                        size="xs"
-                                        mode="solid"
-                                        type="warning"
-                                        buttonClass="rounded-lg"
-                                        :leftIcon="FlagTriangleRight"
-                                        :action="() => flagThisStep(step)"
-                                        class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none group-hover:pointer-events-auto">
-                                        <span class="ml-1">Flag Step</span>
-                                    </Button>
-                                </div>
-
-                                <!-- Main content area -->
-                                <div class="space-y-4">
-
-                                    <!-- System Response -->
-                                    <div>
-                                    <div v-if="index == 0" class="text-xs text-slate-500 mb-1.5 font-medium uppercase tracking-wide">First Response</div>
-                                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 font-mono text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
-                                        {{ step.step_content || 'No content recorded' }}
-                                    </div>
-
-                                    <!-- Duration badge -->
-                                    <div v-if="isNotEmpty(step.reply)" class="mt-2 flex items-center gap-2 text-xs">
-
-                                        <span v-if="index == 0 && step.total_duration_ms > 0" class="text-slate-500">
-                                        Delay
-                                        </span>
-                                        <div :class="[
-                                        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium',
-                                        step.total_duration_status === 'low'    ? 'bg-emerald-100 text-emerald-800' :
-                                        step.total_duration_status === 'medium' ? 'bg-amber-100 text-amber-800' :
-                                        'bg-rose-100 text-rose-800 font-semibold'
-                                        ]">
-                                        <Timer size="14" />
-                                        {{ formatDuration(step.total_duration_ms, 1) }}
+                                    <!-- Header row -->
+                                    <div class="flex items-start justify-between gap-4 mb-3">
+                                        <div>
+                                            <h3 class="font-medium text-slate-900">{{ step.step_title || 'Unnamed Step' }}</h3>
+                                            <p v-if="index == 0" class="text-xs text-slate-500 mt-0.5">
+                                                {{ formattedRelativeDate(step.created_at) }}
+                                            </p>
                                         </div>
-                                    </div>
+
+                                        <!-- Status badges -->
+                                        <div class="flex flex-wrap gap-2 justify-end">
+                                            <span v-if="step.paginated" class="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-full font-medium">
+                                                Paginated · {{ step.page_number }} / {{ step.total_pages }}
+                                            </span>
+
+                                            <span v-if="isLongestWait(step, session.steps)" class="bg-amber-50 text-amber-800 text-xs px-2.5 py-1 rounded-full font-semibold">
+                                                Slowest
+                                            </span>
+
+                                            <span v-if="session.steps.length == 1" class="bg-indigo-50 text-indigo-800 text-xs px-2.5 py-1 rounded-full font-semibold">
+                                                Only Response
+                                            </span>
+
+                                            <span v-if="!step.successful" class="bg-rose-50 text-rose-700 text-xs px-2.5 py-1 rounded-full font-medium">
+                                                Failed
+                                            </span>
+                                        </div>
+                                        <Button
+                                            size="xs"
+                                            mode="solid"
+                                            type="warning"
+                                            buttonClass="rounded-lg"
+                                            :leftIcon="FlagTriangleRight"
+                                            :action="() => flagThisStep(step)"
+                                            class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none group-hover:pointer-events-auto">
+                                            <span class="ml-1">Flag Step</span>
+                                        </Button>
                                     </div>
 
-                                    <!-- User Reply (only if exists) -->
-                                    <div v-if="isNotEmpty(step.reply)" class="flex items-center space-x-4 pt-2 border-t border-slate-100">
-                                    <div class="text-slate-500 text-xs">Reply</div>
-                                    <code class="bg-slate-100 px-3 py-1.5 rounded font-mono text-sm text-slate-800">
-                                        {{ step.reply }}
-                                    </code>
+                                    <!-- Main content area -->
+                                    <div class="space-y-4">
+
+                                        <!-- System Response -->
+                                        <div>
+
+                                            <div v-if="index == 0" class="text-xs text-slate-500 mb-1.5 font-medium uppercase tracking-wide">First Response</div>
+
+                                            <div
+                                                :class="[
+                                                    'bg-slate-50 border border-slate-200 rounded-lg p-4 font-mono text-sm text-slate-800 whitespace-pre-wrap leading-relaxed',
+                                                    { 'mb-8' : isEmpty(step.reply) }
+                                                ]">
+                                                {{ step.step_content || 'No content recorded' }}
+                                            </div>
+
+                                            <!-- Duration badge -->
+                                            <div v-if="isNotEmpty(step.reply)" class="mt-2 flex items-center gap-2 text-xs">
+
+                                                <span v-if="index == 0 && step.total_duration_ms > 0" class="text-slate-500">
+                                                    Delay
+                                                </span>
+
+                                                <div :class="[
+                                                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium',
+                                                    step.total_duration_status === 'low'    ? 'bg-emerald-100 text-emerald-800' :
+                                                    step.total_duration_status === 'medium' ? 'bg-amber-100 text-amber-800' :
+                                                    'bg-rose-100 text-rose-800 font-semibold'
+                                                    ]">
+                                                    <Timer size="14" />
+                                                    {{ formatDuration(step.total_duration_ms, 1) }}
+                                                </div>
+
+                                            </div>
+
+                                        </div>
+
+                                        <!-- User Reply (only if exists) -->
+                                        <div v-if="isNotEmpty(step.reply)" class="flex items-center space-x-4 pt-2 border-t border-slate-100">
+                                            <div class="text-slate-500 text-xs">Reply</div>
+                                            <code class="bg-slate-100 px-3 py-1.5 rounded font-mono text-sm text-slate-800">
+                                                {{ step.reply }}
+                                            </code>
+                                        </div>
+
                                     </div>
 
+                                    <!-- Final termination note -->
+                                    <div v-if="index === session.steps.length - 1 && session.terminated_by_system"
+                                        class="mt-5 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
+                                        <span class="font-medium">Session ended by system</span>
+                                        <span class="ml-1 opacity-80">(timeout / forced termination)</span>
+                                    </div>
+
+                                    </div>
                                 </div>
 
-                                <!-- Final termination note -->
-                                <div v-if="index === session.steps.length - 1 && session.terminated_by_system"
-                                    class="mt-5 bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
-                                    <span class="font-medium">Session ended by system</span>
-                                    <span class="ml-1 opacity-80">(timeout / forced termination)</span>
-                                </div>
-
-                                </div>
                             </div>
-                            </div>
+
                         </div>
 
                     </div>
@@ -269,7 +281,7 @@
 
                     <!-- Overview -->
                     <div
-                        class="bg-white rounded-xl border border-slate-200 p-6 whitespace-nowrap">
+                        class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                         <h3 class="text-lg font-semibold text-slate-900 mb-5">Overview</h3>
                         <dl class="space-y-2 text-sm mb-4">
                             <div class="flex justify-between space-x-8">
@@ -339,7 +351,7 @@
                     </div>
 
                     <!-- Flags Section -->
-                    <div class="bg-white rounded-xl border border-slate-200 p-5 sm:p-6">
+                    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
 
                         <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
 
@@ -679,10 +691,10 @@
                 <Button
                 size="md"
                 mode="solid"
-                class="mt-8 mx-4 w-full"
                 type="primary"
+                class="mt-8 mx-4"
                 :action="updateFlag"
-                buttonClass="rounded-lg"
+                buttonClass="rounded-lg w-full"
                 :loading="updatingFlags.includes(selectedFlag.id)">
                 Save Changes
                 </Button>

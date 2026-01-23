@@ -23,6 +23,7 @@ return new class extends Migration
             $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignUuid('resolved_by')->nullable()->constrained('users')->nullOnDelete();
 
+            $table->foreignUuid('app_id')->constrained('apps')->cascadeOnDelete();
             $table->foreignUuid('ussd_session_id')->constrained('ussd_sessions')->cascadeOnDelete();
             $table->foreignUuid('ussd_session_step_id')->nullable()->constrained('ussd_session_steps')->nullOnDelete();
 

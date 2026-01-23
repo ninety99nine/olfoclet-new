@@ -22,28 +22,37 @@ class UssdSessionFlagService extends BaseService
         /** @var User $user */
         $user = Auth::user();
 
-        $status        = $data['status'] ?? null;
-        $priority      = $data['priority'] ?? null;
-        $category      = $data['category'] ?? null;
-        $ussdSessionId = $data['ussd_session_id'] ?? null;
+        $appId          = $data['app_id'] ?? null;
+        $status         = $data['status'] ?? null;
+        $priority       = $data['priority'] ?? null;
+        $category       = $data['category'] ?? null;
+        $dateRange      = $data['date_range'] ?? null;
+        $dateRangeEnd   = $data['date_range_end'] ?? null;
+        $ussdSessionId  = $data['ussd_session_id'] ?? null;
+        $dateRangeStart = $data['date_range_start'] ?? null;
         $association   = isset($data['association']) ? Association::tryFrom($data['association']) : null;
 
         if ($association === Association::SUPER_ADMIN) {
             $query = UssdSessionFlag::query()->latest();
         } else if (!empty($ussdSessionId)) {
             $query = UssdSessionFlag::where('ussd_session_id', $ussdSessionId);
+        } else if (!empty($appId)) {
+            $query = UssdSessionFlag::where('app_id', $appId);
         } else {
             $appIds = $user->apps()->pluck('apps.id');
-            $query = UssdSessionFlag::whereIn('ussd_session_id', function ($q) use ($appIds) {
-                $q->select('id')
-                  ->from('ussd_sessions')
-                  ->whereIn('app_id', $appIds);
-            });
+            $query = UssdSessionFlag::whereIn('app_id', $appIds);
         }
 
         if (!empty($status))    $query->where('status', $status);
         if (!empty($category))  $query->where('category', $category);
         if (!empty($priority))  $query->where('priority', $priority);
+
+        if($dateRange) {
+
+            // Apply Date Range
+            $query = $this->applyDateRange($query, $dateRange, $dateRangeStart, $dateRangeEnd);
+
+        }
 
         if (!request()->has('_sort')) $query = $query->latest();
 
@@ -79,81 +88,93 @@ class UssdSessionFlagService extends BaseService
         /** @var User $user */
         $user = Auth::user();
 
-        $status        = $data['status'] ?? null;
-        $priority      = $data['priority'] ?? null;
-        $category      = $data['category'] ?? null;
-        $ussdSessionId = $data['ussd_session_id'] ?? null;
+        $appId          = $data['app_id'] ?? null;
+        $status         = $data['status'] ?? null;
+        $priority       = $data['priority'] ?? null;
+        $category       = $data['category'] ?? null;
+        $dateRange      = $data['date_range'] ?? null;
+        $dateRangeEnd   = $data['date_range_end'] ?? null;
+        $ussdSessionId  = $data['ussd_session_id'] ?? null;
+        $dateRangeStart = $data['date_range_start'] ?? null;
         $association   = isset($data['association']) ? Association::tryFrom($data['association']) : null;
 
         if ($association === Association::SUPER_ADMIN) {
             $query = UssdSessionFlag::query()->latest();
         } else if (!empty($ussdSessionId)) {
             $query = UssdSessionFlag::where('ussd_session_id', $ussdSessionId);
+        } else if (!empty($appId)) {
+            $query = UssdSessionFlag::where('app_id', $appId);
         } else {
             $appIds = $user->apps()->pluck('apps.id');
-            $query = UssdSessionFlag::whereIn('ussd_session_id', function ($q) use ($appIds) {
-                $q->select('id')
-                  ->from('ussd_sessions')
-                  ->whereIn('app_id', $appIds);
-            });
+            $query = UssdSessionFlag::whereIn('app_id', $appIds);
         }
 
         if (!empty($status))    $query->where('status', $status);
-        if (!empty($category))  $query->where('category', $category);
         if (!empty($priority))  $query->where('priority', $priority);
 
-        // ── Core aggregates ──
-        $totalOpen     = (clone $query)->where('status', 'open')->count();
-        $totalResolved = (clone $query)->where('status', 'resolved')->count();
+        // Apply Date Range
+        $query = $this->applyDateRange($query, $dateRange, $dateRangeStart, $dateRangeEnd);
 
-        $criticalOpen = (clone $query)
-            ->where('status', 'open')
-            ->where('priority', 'critical')
-            ->count();
+        // Apply Search
+        $query = $this->setQuery($query)->applySearchOnQuery()->getQuery();
 
-        $highOpen = (clone $query)
-            ->where('status', 'open')
-            ->where('priority', 'high')
-            ->count();
+        $unfilteredByCategoryQuery = (clone $query);
 
-        // Category breakdown (only open flags for simplicity)
-        $categoryBreakdown = (clone $query)
+        if (!empty($category))  $query->where('category', $category);
+
+        //  Total open / resolved
+        $aggregates = (clone $query)->selectRaw('
+            COUNT(CASE WHEN status = "open" THEN 1 END)                    as total_open,
+            COUNT(CASE WHEN status = "open" AND priority = "critical" THEN 1 END) as total_critical_open,
+            COUNT(CASE WHEN status = "open" AND priority = "high" THEN 1 END)     as total_high_open,
+            COUNT(DISTINCT CASE WHEN status = "open" THEN ussd_session_id END)    as total_unique_sessions_with_open_flags,
+            COUNT(CASE WHEN status = "resolved" THEN 1 END)                as total_resolved
+        ')->first();
+
+        // Get the single most urgent open flag
+        $firstUrgentOpenFlag = (clone $query)
             ->where('status', 'open')
-            ->select('category', DB::raw('count(*) as count'))
+            ->orderByRaw("
+                CASE priority
+                    WHEN 'critical' THEN 1
+                    WHEN 'high'     THEN 2
+                    WHEN 'medium'   THEN 3
+                    WHEN 'low'      THEN 4
+                    ELSE 5
+                END ASC
+            ")                             // critical first (lowest number = highest priority)
+            ->latest('created_at')         // newer first within the same priority
+            ->first();
+
+        // 1. Open flags category breakdown (only status = 'open')
+        $openCategoryBreakdown = (clone $unfilteredByCategoryQuery)
+            ->where('status', 'open')
+            ->select('category', DB::raw('COUNT(*) as category_count'))
             ->groupBy('category')
-            ->pluck('count', 'category')
+            ->orderByDesc('category_count')           // highest count first
+            ->pluck('category_count', 'category')
             ->toArray();
 
-        // Hot sessions = sessions with most open flags
-        $topSessions = (clone $query)
-            ->where('status', 'open')
-            ->select('ussd_session_id', DB::raw('count(*) as open_count'))
-            ->groupBy('ussd_session_id')
-            ->orderByDesc('open_count')
-            ->limit(5)
-            ->get()
-            ->map(function ($row) {
-                return [
-                    'ussd_session_id' => $row->ussd_session_id,
-                    'count'           => $row->open_count,
-                ];
-            })
+        // 2. Resolved flags category breakdown (only status = 'resolved')
+        $resolvedCategoryBreakdown = (clone $unfilteredByCategoryQuery)
+            ->where('status', 'resolved')
+            ->select('category', DB::raw('COUNT(*) as category_count'))
+            ->groupBy('category')
+            ->orderByDesc('category_count')           // highest count first
+            ->pluck('category_count', 'category')
             ->toArray();
-
-        // Unique sessions with at least one open flag
-        $uniqueSessionsWithOpen = (clone $query)
-            ->where('status', 'open')
-            ->distinct('ussd_session_id')
-            ->count('ussd_session_id');
 
         return [
-            'total_open'          => $totalOpen,
-            'resolved'            => $totalResolved,
-            'critical_open'       => $criticalOpen,
-            'high_open'           => $highOpen,
-            'unique_sessions'     => $uniqueSessionsWithOpen,
-            'category_breakdown'  => $categoryBreakdown,     // ['bug' => 7, 'performance' => 4, ...]
-            'top_sessions'        => $topSessions,           // array of {ussd_session_id, count}
+            'total_open'             => (int) $aggregates->total_open,
+            'total_resolved'         => (int) $aggregates->total_resolved,
+            'total_critical_open'    => (int) $aggregates->total_critical_open,
+            'total_high_open'        => (int) $aggregates->total_high_open,
+            'total_unique_sessions_with_open_flags'        => (int) $aggregates->total_unique_sessions_with_open_flags,
+            'open_category_breakdown'           => $openCategoryBreakdown,
+            'resolved_category_breakdown'       => $resolvedCategoryBreakdown,
+
+            // Most urgent open flag details
+            'first_urgent_open_flag'         => $firstUrgentOpenFlag,
         ];
     }
 

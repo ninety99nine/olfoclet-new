@@ -254,7 +254,7 @@
       <!-- Table -->
       <div class="max-w-7xl mx-auto">
 
-        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
 
           <!-- Table Header with Result Count & Pagination Info -->
           <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm">
@@ -434,7 +434,9 @@
           </div>
 
           <!-- Pagination (footer) -->
-          <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between text-sm">
+          <div
+                v-if="!isLoadingAccounts && pagination?.meta?.total >= 5"
+                class="px-6 py-4 border-t border-slate-100 flex items-center justify-between text-sm">
 
             <div class="text-slate-600">
               Showing
@@ -913,8 +915,8 @@ export default {
       this.refreshData();
     },
     removeSort(sort) {
-      this.selectedSortOptions = this.selectedSortOptions.filter(s => s.label !== sort.label);
-      this.refreshData();
+        this.selectedSortOptions = this.selectedSortOptions.filter(s => s.label !== sort.label);
+        this.refreshData();
     },
     clearAll() {
       this.selectedDateFilterOption = { value: 'all', label: 'All Time' };
@@ -1001,11 +1003,11 @@ export default {
 
         params.date_range = this.selectedDateFilterOption.value;
 
-        if(this.selectedDateFilterOption.value == 'custom') {
+        if(this.selectedDateFilterOption.value == 'custom' && this.dateRange) {
 
             if(this.dateRange) {
+                params.date_range_end = this.dateRange[1];
                 params.date_range_start = this.dateRange[0];
-                params.date_range_start = this.dateRange[1];
             }
 
         }

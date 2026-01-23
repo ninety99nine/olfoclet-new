@@ -22,6 +22,7 @@ class ShowUssdSessionFlagsRequest extends FormRequest
     {
         return [
             'search'     => ['sometimes', 'string'],
+            'app_id'     => ['sometimes', 'uuid', 'exists:apps,id'],
             'ussd_session_id' => ['sometimes', 'uuid', 'exists:ussd_sessions,id'],
             'status'     => ['sometimes', 'in:open,resolved'],
             'priority'   => ['sometimes', 'in:low,medium,high,critical'],

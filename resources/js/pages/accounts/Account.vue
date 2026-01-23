@@ -67,7 +67,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-4">
 
                 <!-- Card 1: Total Sessions + Success Rate -->
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <p class="text-sm text-slate-500 font-medium">Total Sessions</p>
                     <Skeleton v-if="isLoadingAccount" width="w-20" class="shrink-0 mt-2 h-10"></Skeleton>
                     <p v-else class="text-4xl font-bold text-slate-900 mt-2">
@@ -100,7 +100,7 @@
                 </div>
 
                 <!-- Card 2: First Seen + Last Activity -->
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <p class="text-sm text-slate-500 font-medium">First Seen</p>
                     <Skeleton v-if="isLoadingAccount" width="w-32" class="shrink-0 mt-2 h-10"></Skeleton>
                     <p v-else class="text-3xl font-bold text-slate-900 mt-2">
@@ -112,7 +112,7 @@
                 </div>
 
                 <!-- Card 3: Avg Session Duration + Avg Steps -->
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <p class="text-sm text-slate-500 font-medium">Avg Session Duration</p>
                     <Skeleton v-if="isLoadingAccount" width="w-24" class="shrink-0 mt-2 h-10"></Skeleton>
                     <p v-else class="text-4xl font-bold text-slate-900 mt-2">
@@ -124,7 +124,7 @@
                 </div>
 
                 <!-- Card 4: Device Breakdown -->
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <p class="text-sm text-slate-500 font-medium">Device Breakdown</p>
                     <Skeleton v-if="isLoadingAccount" class="mt-4 h-20"></Skeleton>
                     <div v-else class="mt-4 space-y-3">
@@ -164,7 +164,7 @@
                 <!-- Left Column -->
                 <div class="lg:col-span-8 space-y-4">
 
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
 
                         <div class="px-6 py-5 border-b border-slate-100">
                             <h2 class="text-lg font-semibold text-slate-900">
@@ -270,7 +270,7 @@
 
                     <!-- Quick Actions -->
                     <div
-                        class="bg-white rounded-xl border border-slate-200 p-6 whitespace-nowrap">
+                        class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                         <h3 class="text-lg font-semibold text-slate-900 mb-5">Quick Actions</h3>
 
                         <Button
@@ -314,7 +314,7 @@
                     </div>
 
                     <!-- Flags Section -->
-                    <div class="bg-white rounded-xl border border-slate-200 p-5 sm:p-6">
+                    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
 
                         <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
 
@@ -638,10 +638,10 @@
                 <Button
                     size="md"
                     mode="solid"
-                    class="mt-8 mx-4 w-full"
                     type="primary"
+                    class="mt-8 mx-4"
                     :action="updateFlag"
-                    buttonClass="rounded-lg"
+                    buttonClass="rounded-lg w-full"
                     :loading="updatingFlags.includes(selectedFlag.id)">
                     Save Changes
                 </Button>
@@ -1213,9 +1213,12 @@
                 try {
 
                     const data = {
-                        app_id: this.app.id,
-                        resolution_comment: this.resolutionForm.comment
+                        app_id: this.app.id
                     };
+
+                    if(isNotEmpty(this.resolutionForm.comment)) {
+                        data.resolution_comment = this.resolutionForm.comment;
+                    }
 
                     const response = await axios.post(`/api/ussd-session-flags/${flagId}/resolve`, data);
 

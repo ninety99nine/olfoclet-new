@@ -59,7 +59,7 @@ class UssdTestDataSeeder extends Seeder
                 'open_flags_count'        => 0, // updated later
                 'simulated'               => $simulated,
                 'last_step_content'       => $successful ? 'Thank you for using our service' : 'Session timed out',
-                'total_duration_ms' => 0, // ← will be updated after steps
+                'total_duration_ms'       => 0, // ← will be updated after steps
                 'app_id'                  => $testAppId,
                 'ussd_account_id'         => $account['id'],
                 'created_at'              => $createdAt,
@@ -132,18 +132,19 @@ class UssdTestDataSeeder extends Seeder
                 $flagCount = rand(1, 3);
                 for ($f = 1; $f <= $flagCount; $f++) {
                     $flags[] = [
-                        'id'                => (string) Str::uuid(),
-                        'ussd_session_id'   => $sessionId,
-                        'category'          => ['bug', 'ux', 'performance', 'content', 'fraud'][rand(0, 4)],
-                        'priority'          => ['low', 'medium', 'high'][rand(0, 2)],
-                        'comment'           => 'Test flag #' . $f . ' on session ' . substr($sessionId, 0, 8),
-                        'status'            => rand(0, 2) === 0 ? 'resolved' : 'open',
-                        'resolved_at'       => rand(0, 2) === 0 ? now()->subDays(rand(1, 30)) : null,
-                        'resolution_comment'=> rand(0, 2) === 0 ? 'Fixed in next release' : null,
-                        'created_by'        => null,
-                        'resolved_by'       => null,
-                        'created_at'        => now()->subDays(rand(0, 60)),
-                        'updated_at'        => now()->subDays(rand(0, 30)),
+                        'id'                  => (string) Str::uuid(),
+                        'ussd_session_id'     => $sessionId,
+                        'app_id'              => $testAppId, // ← Required field - now set
+                        'category'            => ['bug', 'ux', 'performance', 'content', 'fraud'][rand(0, 4)],
+                        'priority'            => ['low', 'medium', 'high'][rand(0, 2)],
+                        'comment'             => 'Test flag #' . $f . ' on session ' . substr($sessionId, 0, 8),
+                        'status'              => rand(0, 2) === 0 ? 'resolved' : 'open',
+                        'resolved_at'         => rand(0, 2) === 0 ? now()->subDays(rand(1, 30)) : null,
+                        'resolution_comment'  => rand(0, 2) === 0 ? 'Fixed in next release' : null,
+                        'created_by'          => null,
+                        'resolved_by'         => null,
+                        'created_at'          => now()->subDays(rand(0, 60)),
+                        'updated_at'          => now()->subDays(rand(0, 30)),
                     ];
                 }
             }
@@ -154,10 +155,10 @@ class UssdTestDataSeeder extends Seeder
         UssdSessionStep::insert($steps);
         UssdSessionFlag::insert($flags);
 
-        // Update open flags count
+        // Update open flags count on sessions
         $this->updateOpenFlagsCount($sessions);
 
-        // Optional: Update account aggregates (total_duration_ms, etc.)
+        // Update account aggregates (total_sessions, duration, etc.)
         $this->updateAccountAggregates($accounts);
 
         $this->command->info("Seeded: 50 accounts, " . count($sessions) . " sessions, " . count($steps) . " steps, " . count($flags) . " flags.");
@@ -198,7 +199,7 @@ class UssdTestDataSeeder extends Seeder
                 'total_mobile_sessions'     => 0,
                 'total_simulator_sessions'  => 0,
                 'total_steps'               => 0,
-                'total_duration_ms' => 0, // ← will be updated
+                'total_duration_ms'         => 0, // ← will be updated
                 'open_flags_count'          => 0,
                 'blocked_at'                => rand(0, 10) === 0 ? now()->subDays(rand(1, 90)) : null,
                 'app_id'                    => $testAppId,
@@ -255,7 +256,7 @@ class UssdTestDataSeeder extends Seeder
                     'total_mobile_sessions'       => $sessionStats->total_mobile_sessions,
                     'total_simulator_sessions'    => $sessionStats->total_simulator_sessions,
                     'total_steps'                 => $sessionStats->total_steps,
-                    'total_duration_ms' => $sessionStats->total_duration_ms,
+                    'total_duration_ms'           => $sessionStats->total_duration_ms,
                     'open_flags_count'            => $sessionStats->open_flags_count,
                     'updated_at'                  => now(),
                 ]);

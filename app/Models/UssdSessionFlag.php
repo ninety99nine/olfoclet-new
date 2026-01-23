@@ -32,7 +32,8 @@ class UssdSessionFlag extends Model
      */
     protected $fillable = [
         'category','priority','comment','status','resolved_at','resolution_comment',
-        'created_by','resolved_by','ussd_session_id','ussd_session_step_id'
+        'created_by','resolved_by','app_id','ussd_session_id','ussd_session_step_id',
+
     ];
 
     /**

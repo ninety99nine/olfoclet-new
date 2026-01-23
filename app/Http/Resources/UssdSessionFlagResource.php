@@ -33,6 +33,7 @@ class UssdSessionFlagResource extends BaseResource
 
             'created_by' => UserResource::make($this->whenLoaded('createdBy')),
             'resolved_by' => UserResource::make($this->whenLoaded('resolvedBy')),
+            'session' => UssdSessionResource::make($this->whenLoaded('session')),
         ];
     }
 }

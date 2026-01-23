@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Http\Requests\Auth;
+
+use Illuminate\Validation\Rules\Password;
+use Illuminate\Foundation\Http\FormRequest;
+
+class RegisterRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'first_name' => ['required', 'string', 'min:3', 'max:20'],
+            'last_name' => ['required', 'string', 'min:3', 'max:20'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'password' => ['required', 'string', Password::min(6)],
+            'confirm_password' => ['required', 'same:password']
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'first_name.required' => 'The first name is required.',
+            'first_name.string' => 'The first name must be a string.',
+            'first_name.min' => 'The first name must be at least 3 characters or more.',
+            'first_name.max' => 'The first name must not exceed 20 characters.',
+            'last_name.required' => 'The last name is required.',
+            'last_name.string' => 'The last name must be a string.',
+            'last_name.min' => 'The last name must be at least 3 characters or more.',
+            'last_name.max' => 'The last name must not exceed 20 characters.',
+            'email.required' => 'The email is required.',
+            'email.email' => 'Please provide a valid email address.',
+            'email.unique' => 'This email address is already registered.',
+            'password.required' => 'The password is required.',
+            'password.min' => 'The password must be at least 6 characters.',
+            'confirm_password.required' => 'The confirm password is required.',
+            'confirm_password.same' => 'The passwords do not match.'
+        ];
+    }
+}

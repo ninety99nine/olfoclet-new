@@ -1,0 +1,730 @@
+<?php
+
+namespace App\Services;
+
+use Exception;
+use App\Models\User;
+use App\Enums\CacheName;
+use App\Enums\SystemRole;
+use Illuminate\Support\Str;
+use App\Mail\UserRegistered;
+use App\Mail\PasswordResetLink;
+use App\Mail\VerifyUpdatedEmail;
+use Illuminate\Support\Facades\DB;
+use App\Mail\TeamMemberInvitation;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use App\Http\Resources\UserResource;
+use App\Enums\EmailVerificationType;
+use App\Mail\VerifyRegistrationEmail;
+use Illuminate\Http\RedirectResponse;
+use Laravel\Socialite\Facades\Socialite;
+use Laravel\Sanctum\PersonalAccessToken;
+use Illuminate\Validation\ValidationException;
+
+class AuthService extends BaseService
+{
+    /**
+     * Login user.
+     *
+     * @param array $credentials
+     * @return array
+     * @throws ValidationException
+     */
+    public function login(array $credentials): array
+    {
+        $user = User::where('email', $credentials['email'])->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['This account does not exist.']
+            ]);
+        }
+
+        if (is_null($user->email_verified_at)) {
+            throw ValidationException::withMessages([
+                'email' => 'Email must be verified before login.',
+            ]);
+        }
+
+        if (!$user->password) {
+            throw ValidationException::withMessages([
+                'email' => ['This account does not have a password set.']
+            ]);
+        }
+
+        if (!Hash::check($credentials['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.']
+            ]);
+        }
+
+        return [
+            'token' => $user->createToken('auth_token')->plainTextToken,
+            'user' => new UserResource($user),
+            'message' => 'Login successful'
+        ];
+    }
+
+    /**
+     * Register user.
+     *
+     * @param array $data
+     * @return array
+     */
+    public function register(array $data): array
+    {
+        $email = $data['email'] ?? null;
+
+        $user = DB::transaction(function () use ($data) {
+            return User::create([
+                'id' => Str::uuid(),
+                'email_verified_at' => null,
+                'email' => $data['email'] ?? null,
+                'last_name' => $data['last_name'],
+                'first_name' => $data['first_name'],
+                'password' => Hash::make($data['password'])
+            ]);
+        });
+
+        if ($email) {
+
+            $this->sendEmailVerification($user, EmailVerificationType::REGISTRATION_EMAIL);
+
+            return [
+                'user' => new UserResource($user),
+                'message' => 'Registration successful. Please check your email to verify your account.'
+            ];
+
+        }else{
+
+            return [
+                'token' => $user->createToken('auth_token')->plainTextToken,
+                'user' => new UserResource($user),
+                'message' => 'Login successful'
+            ];
+
+        }
+    }
+
+    /**
+     * Send a password reset link to the user.
+     *
+     * @param array $data
+     * @return array
+     * @throws ValidationException
+     */
+    public function sendPasswordResetLink(array $data): array
+    {
+        $email = $data['email'];
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['The email address does not exist.']
+            ]);
+        }
+
+        if (!$user->password) {
+            throw ValidationException::withMessages([
+                'email' => ['The account has not been set up. Please use the setup link sent to your email.']
+            ]);
+        }
+
+        $token = Str::random(60);
+
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $user->email],
+            ['token' => hash('sha256', $token), 'created_at' => now()]
+        );
+
+        $resetUrl = rtrim(config('app.url'), '/') . '/auth/reset-password?token=' . $token . '&email=' . urlencode($user->email);
+        Mail::to($user->email)->queue(new PasswordResetLink($user->email, $resetUrl));
+
+        return [
+            'message' => 'A password reset link has been sent to your email.'
+        ];
+    }
+
+    /**
+     * Validate a password setup token.
+     *
+     * @param array $data
+     * @return array
+     * @throws ValidationException
+     */
+    public function validateToken(array $data): array
+    {
+        $email = $data['email'];
+        $token = $data['token'];
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['The email address does not exist.'],
+            ]);
+        }
+
+        $tokenRecord = DB::table('password_reset_tokens')
+                         ->where('email', $email)
+                         ->where('token', hash('sha256', $token))
+                         ->first();
+
+        if (!$tokenRecord) {
+            throw ValidationException::withMessages([
+                'token' => ['The token is invalid.'],
+            ]);
+        }
+
+        if ($tokenRecord->created_at < now()->subHours(24)) {
+            throw ValidationException::withMessages([
+                'token' => ['The token has expired.'],
+            ]);
+        }
+
+        if ($user->password) {
+            throw ValidationException::withMessages([
+                'email' => ['The account has already been set up. Please log in or reset your password.'],
+            ]);
+        }
+
+        return [
+            'message' => 'Token is valid.'
+        ];
+    }
+
+    /**
+     * Reset a user's password using a token.
+     *
+     * @param array $data
+     * @return array
+     * @throws ValidationException
+     */
+    public function resetPassword(array $data): array
+    {
+        $email = $data['email'];
+        $token = $data['token'];
+        $password = $data['password'];
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['The email address does not exist.']
+            ]);
+        }
+
+        $tokenRecord = DB::table('password_reset_tokens')
+                         ->where('email', $email)
+                         ->where('token', hash('sha256', $token))
+                         ->first();
+
+        if (!$tokenRecord) {
+            throw ValidationException::withMessages([
+                'token' => ['The token is invalid.']
+            ]);
+        }
+
+        if ($tokenRecord->created_at < now()->subHours(24)) {
+            throw ValidationException::withMessages([
+                'token' => ['The token has expired.']
+            ]);
+        }
+
+        $user->password = Hash::make($password);
+        $user->save();
+
+        DB::table('password_reset_tokens')->where('email', $email)->delete();
+
+        return [
+            'message' => 'Password reset successfully. Please log in with your new password.'
+        ];
+    }
+
+
+    /**
+     * Verify a user's email using a token.
+     *
+     * @param array $data
+     * @return array
+     */
+    public function verifyEmail(array $data): array
+    {
+        $email = $data['email'];
+        $token = $data['token'];
+
+        $user = User::where('email', $email)->first();
+
+        if ($user && $user->email_verified_at) {
+            throw ValidationException::withMessages(['email' => 'This email is already verified.']);
+        }
+
+        $tokenRecord = DB::table('email_verification_tokens')
+                        ->where('email', $email)
+                        ->where('token', hash('sha256', $token))
+                        ->first();
+
+        if (!$tokenRecord) {
+            throw ValidationException::withMessages([
+                'token' => ['The verification token is invalid.'],
+            ]);
+        }
+
+        if ($tokenRecord->expires_at < now()) {
+            throw ValidationException::withMessages([
+                'token' => ['The verification token has expired.'],
+            ]);
+        }
+
+        DB::transaction(function () use (&$user, $email) {
+
+            if($user) {
+                $user->update(['email_verified_at' => now()]);
+            }else {
+                $user = User::create([
+                    'email' => $email,
+                    'email_verified_at' => now()
+                ]);
+            }
+
+            DB::table('email_verification_tokens')->where('email', $email)->delete();
+
+            //  Accept the app invitations
+            (new AppService)->acceptAppInvitations($user);
+
+        });
+
+        // Generate token for automatic login
+        $authToken = $user->createToken('auth_token')->plainTextToken;
+
+        return [
+            'message' => 'Email verified successfully',
+            'user' => new UserResource($user),
+            'token' => $authToken,
+        ];
+    }
+
+    /**
+     * Resend email verification.
+     *
+     * @param array $data
+     * @return array
+     */
+    public function resendEmailVerification(array $data): array
+    {
+        $email = $data['email'];
+        $type = isset($data['type']) ? EmailVerificationType::from($data['type']) : EmailVerificationType::REGISTRATION_EMAIL;
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['The email address does not exist.'],
+            ]);
+        }
+
+        if ($user->email_verified_at) {
+            throw ValidationException::withMessages([
+                'email' => ['This email is already verified.'],
+            ]);
+        }
+
+        $this->sendEmailVerification($user, $type);
+
+        return [
+            'message' => 'Verification email sent successfully.'
+        ];
+    }
+
+    /**
+     * Set up a user's password using a token.
+     *
+     * @param array $data
+     * @return array
+     * @throws ValidationException
+     */
+    public function setupPassword(array $data): array
+    {
+        $email = $data['email'];
+        $token = $data['token'];
+        $password = $data['password'];
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['The email address does not exist.'],
+            ]);
+        }
+
+        if ($user->password) {
+            throw ValidationException::withMessages([
+                'email' => ['The account has already been set up. Please log in or reset your password.'],
+            ]);
+        }
+
+        $tokenRecord = DB::table('password_reset_tokens')
+                         ->where('email', $email)
+                         ->where('token', hash('sha256', $token))
+                         ->first();
+
+        if (!$tokenRecord) {
+            throw ValidationException::withMessages([
+                'token' => ['The token is invalid.'],
+            ]);
+        }
+
+        if ($tokenRecord->created_at < now()->subHours(24)) {
+            throw ValidationException::withMessages([
+                'token' => ['The token has expired.'],
+            ]);
+        }
+
+        $user->password = Hash::make($password);
+        $user->save();
+
+        DB::table('password_reset_tokens')->where('email', $email)->delete();
+
+        return [
+            'user' => new UserResource($user),
+            'token' => $user->createToken('auth_token')->plainTextToken,
+            'message' => 'Password set successfully. You are now logged in.'
+        ];
+    }
+
+    /**
+     * Show social login links.
+     *
+     * @return array
+     */
+    public function showSocialLoginLinks(): array
+    {
+        $platforms = ['google', /*'facebook', 'linkedin'*/];
+
+        return collect($platforms)->map(function($platform) {
+
+            $platformCapitalized = ucfirst($platform);
+            $label = 'Continue with '.$platformCapitalized;
+
+            return [
+                'label' => $label,
+                'platform' => $platformCapitalized,
+                'url' => route("social.auth.$platform"),
+                'logo_url' => asset("/images/social-login-icons/$platform.png")
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Redirect the user to the Google authentication page.
+     *
+     * @return RedirectResponse
+     */
+    public function redirectToGoogle(): RedirectResponse
+    {
+        // Authenticate via token if provided
+        if ($token = request('token')) {
+
+            $accessToken = PersonalAccessToken::findToken($token);
+
+            if ($accessToken && $accessToken->tokenable) {
+
+                $user = $accessToken->tokenable;
+                Auth::guard('web')->login($user);
+
+            }
+        }
+
+        return Socialite::driver('google')->redirect();
+    }
+
+    /**
+     * Handle the Google callback.
+     *
+     * @return RedirectResponse
+     */
+    public function handleGoogleCallback(): RedirectResponse
+    {
+        try {
+            $googleUser = Socialite::driver('google')->user();
+            return $this->handleSocialCallback($googleUser, 'google');
+        } catch (\Exception $e) {
+            return redirect()->to('/settings/account')->with('error', 'Failed to connect Google account.');
+        }
+    }
+
+    /**
+     * Redirect the user to the Facebook authentication page.
+     *
+     * @return RedirectResponse
+     */
+    public function redirectToFacebook(): RedirectResponse
+    {
+        // Authenticate via token if provided
+        if ($token = request('token')) {
+
+            $accessToken = PersonalAccessToken::findToken($token);
+
+            if ($accessToken && $accessToken->tokenable) {
+
+                $user = $accessToken->tokenable;
+                Auth::guard('web')->login($user);
+
+            }
+        }
+
+        return Socialite::driver('facebook')->redirect();
+    }
+
+    /**
+     * Handle the Facebook callback.
+     *
+     * @return RedirectResponse
+     */
+    public function handleFacebookCallback(): RedirectResponse
+    {
+        try {
+            $fbUser = Socialite::driver('facebook')->user();
+            return $this->handleSocialCallback($fbUser, 'facebook');
+        } catch (\Exception $e) {
+            return redirect()->to('/settings/account')->with('error', 'Failed to connect Facebook account.');
+        }
+    }
+
+    /**
+     * Redirect the user to the LinkedIn authentication page.
+     *
+     * @return RedirectResponse
+     */
+    public function redirectToLinkedIn(): RedirectResponse
+    {
+        // Authenticate via token if provided
+        if ($token = request('token')) {
+
+            $accessToken = PersonalAccessToken::findToken($token);
+
+            if ($accessToken && $accessToken->tokenable) {
+
+                $user = $accessToken->tokenable;
+                Auth::guard('web')->login($user);
+
+            }
+        }
+
+        return Socialite::driver('linkedin-openid')->redirect();
+    }
+
+    /**
+     * Handle the LinkedIn callback.
+     *
+     * @return RedirectResponse
+     */
+    public function handleLinkedInCallback(): RedirectResponse
+    {
+        try {
+            $liUser = Socialite::driver('linkedin-openid')->user();
+            return $this->handleSocialCallback($liUser, 'linkedin');
+        } catch (\Exception $e) {
+            return redirect()->to('/settings/account')->with('error', 'Failed to connect LinkedIn account.');
+        }
+    }
+
+    /**
+     * Handle social callback
+     */
+    private function handleSocialCallback($providerUser, $provider)
+    {
+        $email = $providerUser->getEmail();
+        $providerId = $providerUser->getId();
+
+        // Map provider to column
+        $providerColumn = "{$provider}_id";
+
+        // If user is already authenticated (i.e. linking account)
+        if (Auth::check()) {
+
+            /** @var User $user */
+            $user = Auth::user();
+
+            // Prevent linking if already connected to another user
+            $existing = User::where($providerColumn, $providerId)->first();
+
+            if ($existing && $existing->id !== $user->id) {
+                return redirect()->to('/settings/account')->with('error', ucfirst($provider) . ' account is already linked to another user.');
+            }
+
+            // Link the account
+            $user->update([
+                $providerColumn => $providerId,
+                'email' => $email ?? $user->email,
+                'email_verified_at' => $email ? now() : $user->email_verified_at,
+            ]);
+
+            return redirect()->away(
+                rtrim(config('app.url'), '/') . '/dashboard/settings/account'
+            );
+
+        }
+
+        // Otherwise: normal login / register flow
+        $name = $providerUser->getName() ?? null;
+
+        if($name) {
+            $nameParts = explode(' ', $name, 2);
+            $firstName = $nameParts[0] ?? null;
+            $lastName = $nameParts[1] ?? null;
+        }else{
+            $firstName = null;
+            $lastName = null;
+        }
+
+        $user = User::firstOrCreate(
+            !empty($email) ? ['email' => $email] : [$providerColumn => $providerId],
+            [
+                'email' => $email,
+                'last_name' => $lastName,
+                'first_name' => $firstName,
+                $providerColumn => $providerId,
+                'email_verified_at' => !empty($email) ? now() : null,
+            ]
+        );
+
+        if ($user->wasRecentlyCreated && $email) {
+            Mail::to($user->email)->queue(new UserRegistered($user->email, $user->first_name));
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $params = [
+            'token' => $token,
+            'provider' => $provider
+        ];
+
+        return redirect()->away(
+            rtrim(config('app.url'), '/') . '/auth/social-login?' . http_build_query($params)
+        );
+    }
+
+    /**
+     * Show authenticated user.
+     *
+     * @param User $user
+     * @return UserResource
+     */
+    public function showAuthUser(User $user): UserResource
+    {
+        if($this->hasRequestRelationships()) {
+            $user->load($this->getRequestRelationships());
+        }
+
+        if($this->hasRequestCountableRelationships()) {
+            $user->loadCount($this->getRequestCountableRelationships());
+        }
+
+        return new UserResource($user);
+    }
+
+    /**
+     * Update authenticated user.
+     *
+     * @param User $user
+     * @param array $data
+     * @return array
+     */
+    public function updateAuthUser(User $user, array $data): array
+    {
+        // Hash password if provided
+        if (!empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        }
+
+        $originalEmail = $user->email;
+        $email = $data['email'] ?? $originalEmail;
+        $emailChanged = !is_null($email) && $email !== $originalEmail;
+
+        // Update user
+        $user->update($data);
+
+        // If email changed, send verification email
+        if ($emailChanged) {
+
+            $user->email_verified_at = null;
+            $user->save();
+
+            $this->sendEmailVerification($user, EmailVerificationType::UPDATED_EMAIL);
+        }
+
+        return [
+            'message' => 'Account updated successfully.'
+        ];
+    }
+
+    /**
+     * Log out the authenticated user.
+     *
+     * @param array $data
+     * @return array
+     */
+    public function logout(array $data): array
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $user->currentAccessToken()?->delete();
+
+        return [
+            'message' => 'Logged out successfully'
+        ];
+    }
+
+    /**
+     * Check if the user is a super admin.
+     *
+     * @param User $user
+     * @return bool
+     */
+    public function isSuperAdmin(User $user): bool
+    {
+        return (new CacheService(CacheName::IS_SUPER_ADMIN))->append($user->id)->remember(now()->addDay(), function () use ($user) {
+            return $user->roles()->where('name', SystemRole::SUPER_ADMIN->value)
+                        ->whereNull('roles.app_id')
+                        ->exists();
+        });
+    }
+
+    /**
+     * Send email verification token.
+     *
+     * @param User $user
+     * @param EmailVerificationType $emailVerificationType
+     * @param string|null $appId
+     * @return void
+     */
+    public function sendEmailVerification(User $user, EmailVerificationType $emailVerificationType, string|null $appId = null): void
+    {
+        $token = Str::random(60);
+
+        DB::table('email_verification_tokens')->updateOrInsert(
+            ['email' => $user->email],
+            [
+                'token' => hash('sha256', $token),
+                'created_at' => now(),
+                'expires_at' => now()->addDays(7) // 7 days expiration
+            ]
+        );
+
+        $verificationUrl = rtrim(config('app.url'), '/') . '/auth/verify-email?' .
+                          'token=' . $token .
+                          '&email=' . urlencode($user->email) .
+                          '&type=' . $emailVerificationType->value;
+
+        if ($emailVerificationType == EmailVerificationType::REGISTRATION_EMAIL) {
+            Mail::to($user->email)->queue(new VerifyRegistrationEmail($user->email, $user->first_name, $verificationUrl));
+        } elseif ($emailVerificationType == EmailVerificationType::UPDATED_EMAIL) {
+            Mail::to($user->email)->queue(new VerifyUpdatedEmail($user->email, $user->first_name, $verificationUrl));
+        } elseif ($emailVerificationType == EmailVerificationType::INVITED_EMAIL) {
+            Mail::to($user->email)->sendNow(new TeamMemberInvitation($user->email, $user->first_name, $appId, $verificationUrl));
+        }
+    }
+}

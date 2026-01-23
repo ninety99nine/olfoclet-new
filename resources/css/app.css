@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/** Classes for the displayed toast **/
+.Toastify__toast {
+    border-radius: 16px !important;
+}
+
+.Toastify__toast.success{
+    color: #065f46 !important;
+    background: #d1fae5 !important;
+}
+
+.Toastify__toast.warning{
+    color: #92400e !important;
+    background: #fef3c7 !important;
+}
+
+.Toastify__toast-body {
+    white-space: normal !important;
+    padding: 10px !important;
+}
+
+.Toastify__close-button {
+    padding: 8px !important;
+}

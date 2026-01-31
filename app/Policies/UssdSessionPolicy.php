@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\App;
 use App\Models\User;
 use App\Models\UssdSession;
 
@@ -21,16 +22,25 @@ class UssdSessionPolicy extends BasePolicy
 
     /**
      * Determine whether the user can view any sessions.
+     *
+     * @param User $user
+     * @param App $app
+     * @return bool
      */
-    public function viewAny(User $user): bool
+    public function viewAny(User $user, App $app): bool
     {
         return true;
     }
 
     /**
      * Determine whether the user can view the session.
+     *
+     * @param User $user
+     * @param App $app
+     * @param UssdSession $ussdSession
+     * @return bool
      */
-    public function view(User $user, UssdSession $ussdSession): bool
+    public function view(User $user, App $app, UssdSession $ussdSession): bool
     {
         return true;
     }

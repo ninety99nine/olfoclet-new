@@ -23,6 +23,8 @@ export default defineConfig({
             '@Stores': path.resolve(__dirname, 'resources/js/stores'),
             '@Layouts': path.resolve(__dirname, 'resources/js/layouts'),
             '@Partials': path.resolve(__dirname, 'resources/js/partials'),
+            '@Components': path.resolve(__dirname, 'resources/js/components'),
+            'monaco-themes': path.resolve(__dirname, 'node_modules/monaco-themes/themes')
         }
     }
 });

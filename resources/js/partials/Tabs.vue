@@ -24,7 +24,7 @@
                     { 'px-4 py-1 text-sm' : size === 'sm' },
                     { 'px-4 py-2 text-sm' : size === 'md' },
                     { 'px-6 py-2.5 text-sm' : size === 'lg' },
-                    'rounded-full font-medium transition-all ',
+                    'rounded-full font-medium transition-all cursor-pointer',
                     size === 'md'
                         ? 'px-4 py-2 text-sm'
                         : 'px-4 py-1 text-sm',

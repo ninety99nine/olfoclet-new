@@ -23,8 +23,13 @@ services:
             - '.:/var/www/html'
         networks:
             - sail
+            - isolated
         depends_on:
             - mysql
+            - sandbox-js
+            - sandbox-python
+            - sandbox-php
+
     mysql:
         image: 'mysql:8.4'
         container_name: mysql
@@ -44,16 +49,61 @@ services:
         networks:
             - sail
         healthcheck:
-            test:
-                - CMD
-                - mysqladmin
-                - ping
-                - '-p${DB_PASSWORD}'
+            test: ['CMD', 'mysqladmin', 'ping', '-p${DB_PASSWORD}']
             retries: 3
             timeout: 5s
+
+    # --- Javascript Sandbox Service ---
+    sandbox-js:
+        build:
+            context: ./docker/sandbox/js
+            dockerfile: Dockerfile
+        image: telcoflo/sandbox-js
+        # Security: Read-only filesystem, drop all Linux capabilities
+        read_only: true
+        cap_drop: [ALL]
+        tmpfs: ['/tmp']
+        networks:
+            - isolated
+        restart: unless-stopped
+
+    # --- Python Sandbox Service ---
+    sandbox-python:
+        build:
+            context: ./docker/sandbox/python
+            dockerfile: Dockerfile
+        image: telcoflo/sandbox-python
+        # Security: Read-only filesystem, drop all Linux capabilities
+        read_only: true
+        cap_drop: [ALL]
+        tmpfs: ['/tmp']
+        networks:
+            - isolated
+        restart: unless-stopped
+
+    # --- PHP Sandbox Service ---
+    sandbox-php:
+        build:
+            context: ./docker/sandbox/php
+            dockerfile: Dockerfile
+        image: telcoflo/sandbox-php
+        # Security: Read-only filesystem, drop all Linux capabilities
+        read_only: true
+        cap_drop: [ALL]
+        tmpfs: ['/tmp']
+        networks:
+            - isolated
+        restart: unless-stopped
+
 networks:
     sail:
         driver: bridge
+    # This network has NO internet access (internal: true)
+    # Only containers on this network can talk to each other.
+    isolated:
+        driver: bridge
+        internal: true
+
 volumes:
     telcoflo-mysql:
         driver: local

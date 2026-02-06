@@ -18,7 +18,7 @@
                         v-for="action in versionState.canvasActions"
                         class="group relative flex items-center gap-4 p-5 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 hover:shadow-md transition-all duration-200 cursor-pointer">
                         <div class="shrink-0 w-12 h-12 rounded-lg bg-indigo-50 flex items-center justify-center">
-                            <component :is="actionIcon(action.icon)" class="w-6 h-6 text-indigo-600" />
+                            <component :is="action.icon" class="w-6 h-6 text-indigo-600" />
                         </div>
                         <div class="flex-1">
                             <h4 class="text-sm font-medium text-slate-900 group-hover:text-indigo-700 transition-colors">
@@ -51,22 +51,19 @@
 <script>
     import Modal from '@Partials/Modal.vue';
     import Button from '@Partials/Button.vue';
-    import { ArrowRight, LayoutGrid, GitBranch } from 'lucide-vue-next';
+    import { ArrowRight } from 'lucide-vue-next';
 
     export default {
         name: 'CanvasActionsModal',
-        components: { Modal, Button, ArrowRight, LayoutGrid, GitBranch },
+        components: { Modal, Button, ArrowRight },
         inject: ['versionState'],
         methods: {
-            actionIcon(name) {
-                return name === 'LayoutGrid' ? LayoutGrid : GitBranch;
-            },
             handleAction(value) {
                 this.versionState.canvasActionsModal?.hideModal();
-                if (value === 'new_step') {
-                    this.versionState.addNewStepToCanvas();
-                } else if (value === 'condition') {
-                    this.versionState.addNewConditionToCanvas();
+                if (value === 'interactive_screen') {
+                    this.versionState.addInteractiveScreenStep();
+                } else if (value === 'decision_point') {
+                    this.versionState.addDecisionPointStep();
                 }
             },
         },

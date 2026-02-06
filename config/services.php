@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'sandbox' => [
+        'js' => env('SANDBOX_JS_URL'),
+        'php' => env('SANDBOX_PHP_URL'),
+        'python' => env('SANDBOX_PYTHON_URL'),
+    ],
+
 ];

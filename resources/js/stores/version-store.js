@@ -1,14 +1,12 @@
-import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { defineStore } from 'pinia';
-import { useRouter } from 'vue-router';
-import { useFormStore } from '@Stores/form-store.js';
-import { useNotificationStore } from '@Stores/notification-store.js';
+import { Smartphone, GitBranch } from 'lucide-vue-next';
+import { useNotificationStore as notificationState } from '@Stores/notification-store.js';
 import { useChangeHistoryStore as changeHistoryState } from '@Stores/change-history-store.js';
 
 const CANVAS_ACTIONS = [
-    { value: 'new_step', label: 'Add new step', description: 'Add a new step to your flow.', icon: 'LayoutGrid' },
-    { value: 'condition', label: 'Add condition', description: 'Create a condition to decide which step to show.', icon: 'GitBranch' },
+    { value: 'interactive_screen', label: 'Interactive Screen', description: 'Show messages and collect user responses.', icon: Smartphone },
+    { value: 'decision_point', label: 'Decision Point', description: 'Direct users to different paths based on specific rules or information.', icon: GitBranch },
 ];
 
 const INITIAL_FEATURES = [
@@ -22,6 +20,11 @@ const INITIAL_FEATURES = [
     },
     { label: 'Enter Input', value: 'input' },
     { label: 'Select Option', value: 'select' },
+];
+
+const EVENT_TYPES = [
+    { value: 'rest api', label: 'REST API', description: 'Fetch or send data to an external server', icon: 'Globe' },
+    { value: 'soap api', label: 'SOAP API', description: 'Integrate with legacy XML web services', icon: 'FileCode' },
 ];
 
 const INPUT_VALIDATION_RULE_OPTIONS = [
@@ -64,7 +67,11 @@ export const useVersionStore = defineStore('version', {
 
         featuresModal: null,
         stepEditModal: null,
+        eventPickerModal: null,
         inputFeatureModal: null,
+        soapApiEventModal: null,
+        restApiEventModal: null,
+        decisionPointModal: null,
         canvasActionsModal: null,
         deleteVersionModal: null,
         versionDetailsModal: null,
@@ -89,6 +96,7 @@ export const useVersionStore = defineStore('version', {
         },
         nodes() {
             const steps = this.steps;
+            if (!steps) return [];
             return Object.entries(steps).map(([id, step]) => ({
                 id,
                 type: 'special',
@@ -96,39 +104,108 @@ export const useVersionStore = defineStore('version', {
             }));
         },
         edges() {
-            const steps = this.steps;
-            const features = this.features;
+            const steps = this.steps; // or this.builder.steps
+            const features = this.features; // or this.builder.features
+            if (!steps) return [];
             const out = [];
+
+            const uuidPattern = /[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}/gi;
+
             for (const [stepId, step] of Object.entries(steps)) {
+
+                // --- 1. HANDLE DECISION POINTS ---
+                if (step.type === 'decision_point') {
+                    // A. Rules Edges
+                    if (Array.isArray(step.rules)) {
+                        step.rules.forEach((rule, idx) => {
+                            if (rule.destination) {
+                                out.push({
+                                    id: `edge-decision-rule-${stepId}-${idx}`,
+                                    type: 'special', // Assuming you use a custom edge type
+                                    source: stepId,
+                                    target: rule.destination,
+                                    sourceHandle: `decision-rule#${stepId}#${idx}`,
+                                    animated: true,
+                                    label: rule.label || `Rule ${idx + 1}`,
+                                    style: { stroke: '#F59E0B' }, // Amber color for logic
+                                    data: { step_id: stepId, rule_index: idx, type: 'decision_rule' },
+                                });
+                            }
+                        });
+                    }
+
+                    // B. Default/Fallback Edge
+                    if (step.default_destination) {
+                        out.push({
+                            id: `edge-decision-default-${stepId}`,
+                            type: 'special',
+                            source: stepId,
+                            target: step.default_destination,
+                            sourceHandle: `decision-default#${stepId}`,
+                            animated: true,
+                            label: 'Else',
+                            style: { stroke: '#94A3B8', strokeDasharray: '5,5' }, // Grey dashed for fallback
+                            data: { step_id: stepId, type: 'decision_default' },
+                        });
+                    }
+                    // Decision points usually don't have features, so we can continue
+                    continue;
+                }
+
+                // --- 2. HANDLE FEATURES (Input/Select) ---
                 const fids = step.feature_ids ?? [];
                 for (const fid of fids) {
                     const feat = features[fid];
                     if (!feat) continue;
+
                     if (feat.type === 'input' && feat.next_step_id) {
                         out.push({
-                            id: `e-${fid}-${feat.next_step_id}`,
+                            id: `input-${fid}`,
                             type: 'special',
                             source: stepId,
                             target: feat.next_step_id,
-                            sourceHandle: fid,
+                            sourceHandle: `input#${fid}`,
                             animated: true,
                             data: { feature_id: fid },
                         });
                     }
-                    if (feat.type === 'select' && Array.isArray(feat.options)) {
-                        feat.options.forEach((opt, idx) => {
-                            if (opt.next_step_id) {
-                                out.push({
-                                    id: `e-${fid}-${idx}-${opt.next_step_id}`,
-                                    type: 'special',
-                                    source: stepId,
-                                    target: opt.next_step_id,
-                                    sourceHandle: `select-${fid}-${idx}`,
-                                    animated: true,
-                                    data: { feature_id: fid, optionIndex: idx },
-                                });
-                            }
-                        });
+
+                    if (feat.type === 'select') {
+                        if (feat.source === 'list' && Array.isArray(feat.options)) {
+                            feat.options.forEach((opt, idx) => {
+                                if (!opt.is_terminal && opt.next_step_id) {
+                                    out.push({
+                                        id: `static-select-${fid}-${idx}`,
+                                        type: 'special',
+                                        source: stepId,
+                                        target: opt.next_step_id,
+                                        sourceHandle: `option-select#${fid}#${idx}`,
+                                        animated: true,
+                                        data: { feature_id: fid, option_index: idx },
+                                    });
+                                }
+                            });
+                        }
+                        else if (feat.source === 'code' && feat.content) {
+                            // Dynamic code linking logic...
+                            const foundTargets = new Set();
+                            const matches = feat.content.match(uuidPattern) || [];
+
+                            matches.forEach((targetId) => {
+                                if (steps[targetId] && !foundTargets.has(targetId)) {
+                                    out.push({
+                                        id: `code-select-${fid}-${targetId}`,
+                                        type: 'special',
+                                        source: stepId,
+                                        target: targetId,
+                                        sourceHandle: `code-select#${fid}`,
+                                        animated: true,
+                                        data: { feature_id: fid, is_dynamic: true },
+                                    });
+                                    foundTargets.add(targetId);
+                                }
+                            });
+                        }
                     }
                 }
             }
@@ -151,6 +228,7 @@ export const useVersionStore = defineStore('version', {
                 return f?.type === 'basic content' || f?.type === 'code content';
             });
         },
+        eventTypes: () => EVENT_TYPES,
         canvasActions: () => CANVAS_ACTIONS,
         initialFeatures: () => INITIAL_FEATURES,
         inputValidationRuleOptions: () => INPUT_VALIDATION_RULE_OPTIONS,
@@ -171,8 +249,11 @@ export const useVersionStore = defineStore('version', {
 
             this.featuresModal = null;
             this.stepEditModal = null;
+            this.soapApiEventModal = null;
+            this.restApiEventModal = null;
             this.inputFeatureModal = null;
             this.canvasActionsModal = null;
+            this.decisionPointModal = null;
             this.deleteVersionModal = null;
             this.versionDetailsModal = null;
             this.codeContentEditorModal = null;
@@ -213,60 +294,59 @@ export const useVersionStore = defineStore('version', {
             if (saveState) this.saveOriginalState('Original version');
         },
 
-
-
-
-
-        addNewConditionToCanvas() {},
-        addNewStepToCanvas(stepName = null, nextToCurrentStep = false) {
+        /**
+         * Core method to add any step to the Vue Flow canvas.
+         * Supports positioning overrides and relative placement.
+         */
+        addStepToCanvas(config = {}, options = {}, zoom = true) {
             const newId = uuidv4();
-            const steps = Object.values(this.builder.steps);
+            const { nextToCurrentStep, position } = options;
+            const steps = Object.values(this.builder.steps || {});
 
-            let x,y;
+            let x, y;
 
-            if (nextToCurrentStep) {
-                const currentStep = this.currentStep;
-                x = currentStep.position[0] + 350;
-                y = currentStep.position[1];
-            }else{
-
-                // Default position if canvas is empty
-                x = 50;
-                y = 50;
-
+            // 1. Priority: Use explicit position if provided
+            if (position && position.x !== undefined && position.y !== undefined) {
+                x = position.x;
+                y = position.y;
+            }
+            // 2. Secondary: Place relative to the currently active/selected step
+            else if (nextToCurrentStep && this.currentStep) {
+                const currentPos = this.currentStep.position || [0, 0];
+                x = currentPos[0] + 350;
+                y = currentPos[1];
+            }
+            // 3. Default: Find the right-most edge of the existing flow
+            else {
                 if (steps.length > 0) {
-                    // Find the right-most boundary of all existing steps
                     const maxX = Math.max(...steps.map(s => s.position[0]));
-
-                    // Find the step(s) at that right-most boundary to align vertically
                     const rightMostStep = steps.find(s => s.position[0] === maxX);
 
-                    x = maxX + 350; // Standard horizontal spacing
-                    y = rightMostStep.position[1]; // Align with the right-most step
+                    x = maxX + 350;
+                    y = rightMostStep ? rightMostStep.position[1] : 50;
+                } else {
+                    x = 50;
+                    y = 50;
                 }
-
             }
 
-            // Use Vue.set or direct assignment depending on your Vue version
-            // but ensure we are modifying the reactive versionForm
-            this.versionForm.builder.steps = {
-                ...this.versionForm.builder.steps,
-                [newId]: {
-                    name: stepName || 'New Step',
-                    feature_ids: [],
-                    position: [x, y]
-                }
+            // Create the new step object
+            this.versionForm.builder.steps[newId] = {
+                name: config.name || 'New Step',
+                type: config.type,
+                position: [x, y],
+                ...config.data // Inject type-specific properties (feature_ids, rules, etc.)
             };
 
-            if(this.builder.initial_step_id == null) {
+            // Auto-assign as initial step if canvas was empty
+            if (this.builder.initial_step_id == null) {
                 this.builder.initial_step_id = newId;
             }
 
-            if (this.vueFlowInstance) {
-
-                const padding = Object.keys(this.builder.steps).length == 1 ? 2 : 4;
-
-                const hook = this.vueFlowInstance.onNodesInitialized((nodes) => {
+            // Vue Flow Viewport Focus: Smoothly zoom into the new node
+            if (zoom && this.vueFlowInstance) {
+                const padding = Object.keys(this.builder.steps).length === 1 ? 2 : 4;
+                const hook = this.vueFlowInstance.onNodesInitialized(() => {
                     this.vueFlowInstance.fitView({
                         nodes: [newId],
                         duration: 800,
@@ -274,16 +354,229 @@ export const useVersionStore = defineStore('version', {
                     });
                     hook.off();
                 });
-
             }
 
-            // Helpful for chaining actions (like opening the edit modal immediately)
             return newId;
         },
+        /**
+         * AUTO-LAYOUT: SMART STACKING & GAP MANAGEMENT
+         * Fixed: Fully traverses features AND decision logic to strictly enforce logical sequence.
+         */
+        autoLayoutNodes({ zoom = true, autoLayout = true, focusNodeId = null } = {}) {
+            const builder = this.builder;
+            const steps = builder.steps;
+            const features = builder.features;
+            const initialId = builder.initial_step_id;
+
+            if (!initialId || !steps[initialId]) return;
+
+            if (autoLayout) {
+                const horizontalSpacing = 450;
+                const verticalSpacing = 40;
+                const columns = [];
+                const visited = new Set();
+
+                // 1. Height Calculator
+                const getNodeHeight = (id) => {
+                    const el = document.querySelector(`[data-id="${id}"]`);
+                    if (el) return el.offsetHeight;
+                    let est = 120;
+                    const step = steps[id];
+                    if (step?.event_ids) est += (step.event_ids.length * 62);
+                    if (step?.feature_ids) {
+                        step.feature_ids.forEach(fid => {
+                            const f = features[fid];
+                            if (f?.type === 'select') est += (f.options?.length || 0) * 50 + 80;
+                            else if (f?.type === 'input') est += 110;
+                            else est += 100;
+                        });
+                    }
+                    return est;
+                };
+
+                // 2. LOGIC EXTENSION: Traverse both Features and Decision Rules
+                const getOrderedChildren = (stepId) => {
+                    const step = steps[stepId];
+                    if (!step) return [];
+
+                    const orderedIds = [];
+
+                    // A. If it's a Screen with Features
+                    if (step.feature_ids && step.feature_ids.length > 0) {
+                        step.feature_ids.forEach(fid => {
+                            const feat = features[fid];
+                            if (!feat) return;
+
+                            // Select Options (Strict Order)
+                            if (feat.type === 'select' && Array.isArray(feat.options)) {
+                                feat.options.forEach(opt => {
+                                    if (opt.next_step_id) orderedIds.push(opt.next_step_id);
+                                });
+                            }
+                            // Input / Direct Links
+                            if (feat.next_step_id) {
+                                orderedIds.push(feat.next_step_id);
+                            }
+                        });
+                    }
+
+                    // B. If it's a Decision Point (Logic Gate)
+                    if (step.type === 'decision_point') {
+                        // 1. Check Rules
+                        if (Array.isArray(step.rules)) {
+                            step.rules.forEach(rule => {
+                                if (rule.destination) orderedIds.push(rule.destination);
+                            });
+                        }
+                        // 2. Check Default Destination
+                        if (step.default_destination) {
+                            orderedIds.push(step.default_destination);
+                        }
+                    }
+
+                    return orderedIds;
+                };
+
+                // 3. BFS Runner
+                const runBFS = (startNodes) => {
+                    const queue = [...startNodes];
+
+                    while (queue.length > 0) {
+                        const { id, level } = queue.shift();
+
+                        if (visited.has(id)) continue;
+                        visited.add(id);
+
+                        if (!columns[level]) columns[level] = [];
+                        columns[level].push(id);
+
+                        // Because we find children via LOGIC (not position),
+                        // dragging nodes around manually will not affect this order.
+                        getOrderedChildren(id).forEach(childId => {
+                            if (!visited.has(childId)) {
+                                queue.push({ id: childId, level: level + 1 });
+                            }
+                        });
+                    }
+                };
+
+                // 4. Execution
+                // A. Main Tree (The Anchor)
+                runBFS([{ id: initialId, level: 0 }]);
+
+                // B. Orphans (True disconnected islands)
+                const orphanIds = Object.keys(steps)
+                    .filter(id => !visited.has(id))
+                    .sort((a, b) => (steps[a].position[0] - steps[b].position[0]));
+
+                orphanIds.forEach(orphanId => {
+                    if (visited.has(orphanId)) return;
+                    const startColumn = columns.length; // Start in a clean new column
+                    runBFS([{ id: orphanId, level: startColumn }]);
+                });
+
+                // 5. Apply Coordinates
+                columns.forEach((columnSteps, colIdx) => {
+                    if (!columnSteps) return;
+
+                    const totalNodesHeight = columnSteps.reduce((sum, id) => sum + getNodeHeight(id), 0);
+                    const totalGapsHeight = (columnSteps.length - 1) * verticalSpacing;
+                    const totalColumnHeight = totalNodesHeight + totalGapsHeight;
+
+                    let currentY = 300 - (totalColumnHeight / 2);
+
+                    columnSteps.forEach((stepId) => {
+                        steps[stepId].position = [
+                            colIdx * horizontalSpacing + 50,
+                            currentY
+                        ];
+                        currentY += getNodeHeight(stepId) + verticalSpacing;
+                    });
+                });
+
+                this.saveState('Auto-arranged tree layout');
+            }
+
+            // Camera Logic
+            if (this.vueFlowInstance && (zoom || focusNodeId)) {
+                setTimeout(() => {
+                    const targetNodes = focusNodeId ? [focusNodeId] : Object.keys(this.builder.steps);
+                    const padding = targetNodes.length === 1 ? 2.5 : 0.2;
+                    this.vueFlowInstance.fitView({ nodes: targetNodes, duration: 800, padding: padding });
+                }, 200);
+            }
+        },
+        /**
+         * Wrapper for adding Interactive Screens (USSD Menus/Forms)
+         */
+        addInteractiveScreenStep(name = null, options = {}, zoom = true) {
+            const id = this.addStepToCanvas({
+                name: name || 'New Screen',
+                type: 'interactive_screen',
+                data: {
+                    is_terminal: false,
+                    feature_ids: []
+                }
+            }, options, zoom);
+
+            this.saveState('Added Interactive Screen');
+            return id;
+        },
+
+        /**
+         * Wrapper for adding Logic Gates
+         */
+        addDecisionPointStep(name = null, options = {}, zoom = true) {
+            const id = this.addStepToCanvas({
+                name: name || 'Decision Point',
+                type: 'decision_point',
+                data: {
+                    source: 'manual',
+                    rules: [
+                        {
+                            label: 'Default Rule',
+                            checks: [{ variable: 'status', operator: '==', value: 'ACTIVE' }],
+                            destination: null
+                        }
+                    ],
+                    default_destination: null
+                }
+            }, options, zoom);
+
+            this.saveState('Added Decision Point');
+            return id;
+        },
         removeStep(stepId) {
-            const isStart = this.versionForm.builder.initial_step_id === stepId;
-            if (isStart) this.reassignInitialStep(stepId);
-            delete this.versionForm.builder.steps[stepId];
+            const builder = this.builder;
+            if (!builder.steps[stepId]) return;
+
+            // Handle start-step logic before deletion
+            if (builder.initial_step_id === stepId) {
+                this.reassignInitialStep(stepId);
+            }
+
+            // Cleanup features if it was an interactive screen
+            if (builder.steps[stepId].type === 'interactive_screen') {
+                const fids = builder.steps[stepId].feature_ids || [];
+                fids.forEach(fid => delete builder.features[fid]);
+            }
+
+            delete builder.steps[stepId];
+            this.saveState('Removed Step');
+        },
+        toggleStepTermination(stepId) {
+            const step = this.builder.steps[stepId];
+            if (!step) return;
+
+            step.is_terminal = !step.is_terminal;
+
+            if (step.is_terminal) {
+                const typesToRemove = ['input', 'select'];
+                this.clearFeaturesByType(step, typesToRemove);
+            }
+
+            const status = step.is_terminal ? 'end' : 'continue';
+            return status;
         },
         setCurrentStepId(stepId) {
             this.currentStepId = stepId;
@@ -326,14 +619,49 @@ export const useVersionStore = defineStore('version', {
             return { success: false, type: 'last_man' };
         },
         removeStep(stepId) {
-            const step = this.builder.steps[stepId];
+            const builder = this.builder;
+            const step = builder.steps[stepId];
             if (!step) return;
-            (step.feature_ids ?? []).forEach(fid => delete this.builder.features[fid]);
-            delete this.builder.steps[stepId];
-            if (this.builder.initial_step_id === stepId) {
-                this.setInitialStepId(Object.keys(this.builder.steps)[0] ?? null);
+
+            // 1. Cleanup features OWNED by this step
+            (step.feature_ids ?? []).forEach(fid => {
+                const feature = builder.features[fid];
+                // If it's an input, clean up its validation rules first
+                if (feature?.type === 'input' && feature.validation_rule_ids) {
+                    feature.validation_rule_ids.forEach(vid => delete builder.validation_rules[vid]);
+                }
+                delete builder.features[fid];
+            });
+
+            // 2. DISCONNECT any other steps pointing to THIS step
+            // We scan all features in the builder to unset next_step_id
+            Object.values(builder.features).forEach(feat => {
+                // Handle Input features
+                if (feat.type === 'input' && feat.next_step_id === stepId) {
+                    feat.next_step_id = null;
+                }
+
+                // Handle Select features (list source)
+                if (feat.type === 'select' && Array.isArray(feat.options)) {
+                    feat.options.forEach(opt => {
+                        if (opt.next_step_id === stepId) {
+                            opt.next_step_id = null;
+                        }
+                    });
+                }
+            });
+
+            // 3. Handle Initial Step logic
+            const isStart = builder.initial_step_id === stepId;
+            if (isStart) {
+                // Use your existing logic to find a new starting point
+                this.reassignInitialStep(stepId);
             }
+
+            // 4. Finally, delete the step itself
+            delete builder.steps[stepId];
         },
+
         addFeature(type, overrides = {}) {
 
             const fid = uuidv4();
@@ -417,14 +745,14 @@ export const useVersionStore = defineStore('version', {
                 f.language = f.language || 'php';
                 // Only set default if content is truly empty/null
                 if (!f.content || f.content.trim() === '') {
-                    f.content = '<?php\n\n\treturn \'Welcome message or instructions\';\n\n?>';
+                    f.content = '';
                 }
             } else {
                 f.type = 'basic content';
                 // Strip out PHP tags if moving from code to basic?
                 // Usually, it's safer just to keep what they wrote.
                 if (!f.content || f.content.trim() === '') {
-                    f.content = 'Welcome message or instructions';
+                    f.content = '';
                 }
             }
         },
@@ -432,12 +760,12 @@ export const useVersionStore = defineStore('version', {
             const defaults = {
                 'basic content': {
                     type,
-                    content: 'Welcome message or instructions'
+                    content: ''
                 },
                 'code content': {
                     type,
                     language: 'php',
-                    content: "<?php\n\n\treturn 'Welcome message or instructions';\n\n?>"
+                    content: ""
                 },
                 'input': {
                     type: 'input',
@@ -451,7 +779,7 @@ export const useVersionStore = defineStore('version', {
                     source: 'list', // 'list' or 'code'
                     options: [],    // Used for source: 'list'
                     language: 'php', // Used for source: 'code'
-                    content: "<?php\n\nreturn [\n\t['label' => 'Option 1', 'next_step_id' => null],\n\t['label' => 'Option 2', 'next_step_id' => null],\n];\n\n?>",
+                    content: "",
                 },
             };
             return defaults[type] || { type };
@@ -553,32 +881,166 @@ export const useVersionStore = defineStore('version', {
             if (feat?.validation_rule_ids) feat.validation_rule_ids = feat.validation_rule_ids.filter(id => id !== ruleId);
             delete this.builder.validation_rules[ruleId];
         },
+        addEvent(stepId, timing, type) {
+            const eid = uuidv4();
+            const step = this.builder.steps[stepId];
 
+            if (!step) {
+                console.error(`Step ${stepId} not found.`);
+                return null;
+            }
 
+            // Ensure the global events object exists
+            if (!this.builder.events) {
+                this.builder.events = {};
+            }
+
+            const isSoap = type === 'soap api';
+
+            const baseEvent = {
+                id: eid,
+                type,
+                timing,
+                source: 'manual',
+                url: '',
+                // Set contextual defaults for headers
+                headers: [
+                    {
+                        key: 'Content-Type',
+                        value: isSoap ? 'text/xml; charset=utf-8' : 'application/json'
+                    }
+                ],
+                // Set sensible variable defaults based on type
+                response_variable: isSoap ? 'soapResponse' : 'apiResponse',
+                status_variable: isSoap ? 'soapStatus' : 'apiStatus',
+                // Always initialize code_content to prevent null errors in Code Mode
+                code_content: isSoap
+                    ? "<?php\n\nreturn [\n    'url' => 'https://api.example.com/services',\n    'envelope' => '<soap:Envelope>...</soap:Envelope>',\n    'action' => 'http://tempuri.org/Action'\n];"
+                    : "<?php\n\nreturn [\n    'method' => 'GET',\n    'url' => 'https://api.example.com/resource'\n];"
+            };
+
+            const specificData = isSoap ? {
+                soap_action: '',
+                soap_version: '1.1',
+                envelope: '<?xml version="1.0" encoding="utf-8"?>\n<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">\n  <soap:Body>\n    \n  </soap:Body>\n</soap:Envelope>',
+            } : {
+                method: 'GET',
+                body_type: 'form',
+                body_form: [{ key: '', value: '' }],
+                body: '',
+            };
+
+            // 1. Create the full event object
+            const newEvent = { ...baseEvent, ...specificData };
+
+            // 2. Commit to the global events dictionary first (Crucial for reactivity)
+            this.builder.events[eid] = newEvent;
+
+            // 3. Link the event to the step
+            if (!step.event_ids) {
+                step.event_ids = [];
+            }
+            step.event_ids.push(eid);
+
+            // 4. Set as current event so modals know what to edit
+            this.currentEventId = eid;
+
+            // 5. Save state for undo/redo history
+            this.saveState(`Added ${type} (${timing})`);
+
+            return eid;
+        },
+        removeEvent(stepId, eventId) {
+            const step = this.builder.steps[stepId];
+            if (step) step.event_ids = step.event_ids.filter(id => id !== eventId);
+            delete this.builder.events[eventId];
+        },
 
 
         onConnect(params) {
             const { target, sourceHandle } = params;
-            const handleId = sourceHandle || '';
-            let fid = handleId;
-            let optIdx = null;
-            if (handleId.startsWith('select-')) {
-                const parts = handleId.split('-');
-                if (parts.length >= 3) {
-                    optIdx = parseInt(parts[parts.length - 1], 10);
-                    fid = parts.slice(1, -1).join('-');
+            if (!sourceHandle) return;
+
+            // 1. Handle Decision Point Rules (Format: "decision-rule#stepId#ruleIndex")
+            if (sourceHandle.startsWith('decision-rule#')) {
+                const parts = sourceHandle.split('#');
+                const stepId = parts[1];
+                const ruleIdx = parseInt(parts[2], 10);
+
+                const step = this.builder.steps[stepId];
+                if (step && step.rules && step.rules[ruleIdx]) {
+                    step.rules[ruleIdx].destination = target;
                 }
-            }
-            const feat = this.builder.features[fid];
-            if (!feat) return;
-            if (feat.type === 'input') {
-                feat.next_step_id = target;
                 return;
             }
-            if (feat.type === 'select' && optIdx != null) {
-                if (!feat.options) feat.options = [];
-                if (!feat.options[optIdx]) feat.options[optIdx] = { value: '', label: '', next_step_id: null };
-                feat.options[optIdx].next_step_id = target;
+
+            // 2. Handle Decision Point Default/Fallback (Format: "decision-default#stepId")
+            if (sourceHandle.startsWith('decision-default#')) {
+                const parts = sourceHandle.split('#');
+                const stepId = parts[1];
+
+                const step = this.builder.steps[stepId];
+                if (step) {
+                    step.default_destination = target;
+                }
+                return;
+            }
+
+            // 3. Handle Inputs (Format: "input#fid")
+            if (sourceHandle.startsWith('input#')) {
+                const fid = sourceHandle.split('#')[1];
+                const feat = this.builder.features[fid];
+                if (feat) {
+                    feat.next_step_id = target;
+                }
+                return;
+            }
+
+            // 4. Handle Code-Driven Menus (Format: "code-select#fid")
+            // Logic: Helper to copy target ID to clipboard and open editor
+            if (sourceHandle.startsWith('code-select#')) {
+                const fid = sourceHandle.split('#')[1];
+                const feat = this.builder.features[fid];
+
+                if (feat) {
+                    // A. Copy UUID to clipboard
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(target);
+                        // Ensure you have access to notificationState or use console
+                        if (typeof notificationState === 'function') {
+                            notificationState().showSuccessNotification(
+                                `Step ID copied! Paste it into your ${feat.language} script.`
+                            );
+                        }
+                    }
+
+                    // B. Automatically open the modal for this feature
+                    // Find which step this feature belongs to
+                    const stepId = Object.keys(this.builder.steps).find(sid =>
+                        this.builder.steps[sid].feature_ids?.includes(fid)
+                    );
+
+                    if (stepId) {
+                        this.setCurrentStepId(stepId);
+                        this.setCurrentFeatureId(fid);
+                        if (this.selectFeatureModal) {
+                            this.selectFeatureModal.showModal();
+                        }
+                    }
+                }
+                return;
+            }
+
+            // 5. Handle Static List Options (Format: "option-select#fid#idx")
+            if (sourceHandle.startsWith('option-select#')) {
+                const parts = sourceHandle.split('#');
+                const fid = parts[1];
+                const optIdx = parseInt(parts[2], 10);
+
+                const feat = this.builder.features[fid];
+                if (feat?.options?.[optIdx]) {
+                    feat.options[optIdx].next_step_id = target;
+                }
             }
         },
         onNodesChange(changes) {
@@ -593,14 +1055,36 @@ export const useVersionStore = defineStore('version', {
             (changes || []).filter(c => c.type === 'remove' && c.id).forEach(c => this.removeInputEdge(c.id));
         },
         removeInputEdge(edgeId) {
-            const edges = this.edges;
+            const edges = this.edges; // Use the computed property
             const edge = edges.find(e => e.id === edgeId);
-            if (!edge?.data?.feature_id) return;
-            const f = this.builder.features[edge.data.feature_id];
-            if (f?.type === 'input') f.next_step_id = null;
-            if (f?.type === 'select' && edge.data.optionIndex != null && f.options?.[edge.data.optionIndex]) {
-                f.options[edge.data.optionIndex].next_step_id = null;
+            if (!edge || !edge.data) return;
+
+            // Handle Decision Rules
+            if (edge.data.type === 'decision_rule') {
+                const step = this.builder.steps[edge.data.step_id];
+                if (step && step.rules && step.rules[edge.data.rule_index]) {
+                    step.rules[edge.data.rule_index].destination = null;
+                }
+                return;
             }
-        },
+
+            // Handle Decision Default
+            if (edge.data.type === 'decision_default') {
+                const step = this.builder.steps[edge.data.step_id];
+                if (step) {
+                    step.default_destination = null;
+                }
+                return;
+            }
+
+            // Handle Features (Existing logic)
+            if (edge.data.feature_id) {
+                const f = this.builder.features[edge.data.feature_id];
+                if (f?.type === 'input') f.next_step_id = null;
+                if (f?.type === 'select' && edge.data.option_index != null && f.options?.[edge.data.option_index]) {
+                    f.options[edge.data.option_index].next_step_id = null;
+                }
+            }
+        }
     },
 });

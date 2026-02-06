@@ -88,7 +88,7 @@
                         wrapperAlignItems,
                         {
                             'has-[input:focus-within]:outline-2 has-[input:focus-within]:-outline-offset-2 has-[input:focus-within]:outline-indigo-800': showOutline,
-                            'bg-slate-50 py-2.5 px-2.5 rounded-md outline-1 -outline-offset-1 outline-gray-300':
+                            'bg-slate-50 rounded-md outline-1 -outline-offset-1 outline-gray-300':
                             [
                                 'text', 'password', 'email', 'number', 'tel', 'url', 'search', 'date',
                                 'datetime-local', 'month', 'week', 'time', 'money', 'percentage', 'textarea'
@@ -117,9 +117,9 @@
 
                     <!-- Prefix Icon Slot -->
                     <slot v-if="$slots.prefix" name="prefix"></slot>
-                    <Mail v-else-if="type == 'email'" :size="20" class="mr-2 -mt-0.5 -mb-0.5 text-slate-400"></Mail>
-                    <Lock v-else-if="type == 'password'" :size="20" class="mr-2 -mt-0.5 -mb-0.5 text-slate-400"></Lock>
-                    <Search v-else-if="type == 'search'" :size="20" class="mr-2 -mt-0.5 -mb-0.5 text-slate-400"></Search>
+                    <Mail v-else-if="type == 'email'" :size="24" class="-mt-0.5 -mb-0.5 pl-2.5 shrink-0 text-slate-400"></Mail>
+                    <Lock v-else-if="type == 'password'" :size="24" class="-mt-0.5 -mb-0.5 pl-2.5 shrink-0 text-slate-400"></Lock>
+                    <Search v-else-if="type == 'search'" :size="24" class="-mt-0.5 -mb-0.5 pl-2.5 shrink-0 text-slate-400"></Search>
                     <div v-else-if="type == 'money' && currency" class="text-sm leading-4 mr-2">
                         {{ currencySymbol }}
                     </div>
@@ -140,7 +140,7 @@
                         @keydown.enter="(event) => $emit('onEnter', event)"
                         :class="[
                             inputClass ? inputClass : [
-                                'w-full h-full text-sm leading-6 font-medium text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus-within:outline-none bg-transparent appearance-none [&::-webkit-search-cancel-button]:cursor-pointer',
+                                'w-full h-full py-2.5 px-2.5 text-sm leading-6 font-medium text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus-within:outline-none bg-transparent appearance-none [&::-webkit-search-cancel-button]:cursor-pointer',
                                 {
                                     'resize-none': !resize,
                                 },
@@ -195,7 +195,7 @@
                         :placeholder="inputPlaceholder"
                         :class="inputClass ? inputClass : [
                             {
-                                'w-full h-full text-sm leading-6 font-medium text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus-within:outline-none bg-transparent appearance-none [&::-webkit-search-cancel-button]:cursor-pointer':
+                                'w-full h-full py-2.5 px-2.5 text-sm leading-6 font-medium text-gray-700 placeholder:text-gray-400 placeholder:font-normal focus-within:outline-none bg-transparent appearance-none [&::-webkit-search-cancel-button]:cursor-pointer':
                                 [
                                     'text', 'password', 'email', 'number', 'tel', 'url', 'search', 'date',
                                     'datetime-local', 'month', 'week', 'time', 'money',
@@ -521,7 +521,7 @@
             },
             showOutline: {
                 type: Boolean,
-                default: true
+                default: false
             },
             description: {
                 type: [String, null],

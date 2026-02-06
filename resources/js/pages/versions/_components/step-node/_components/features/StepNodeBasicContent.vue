@@ -3,11 +3,20 @@
     <div class="border border-slate-200 rounded-lg relative group/feature transition-all bg-slate-50 p-3 text-sm mb-4">
 
         <ContentEditor
+            :key="feature.id"
             :fullWidth="true"
-            v-model="feature.content">
+            v-model="versionForm.builder.features[feature.id].content">
+
+            <template #title>
+                <div class="flex items-center gap-2 min-w-0">
+                    <Sparkle size="14" class="text-indigo-600 shrink-0" />
+                    <span class="text-xs font-bold text-slate-700 capitalize leading-tight">
+                        Content
+                    </span>
+                </div>
+            </template>
 
             <template #headerActions>
-
                 <Dropdown position="left" dropdownClasses="w-56">
                     <template #trigger="{ toggleDropdown }">
                         <button @click="toggleDropdown" class="w-7 h-8 rounded-md border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 cursor-pointer">
@@ -28,7 +37,6 @@
                         </div>
                     </template>
                 </Dropdown>
-
             </template>
 
         </ContentEditor>
@@ -39,16 +47,21 @@
 
 <script>
     import Dropdown from '@Partials/Dropdown.vue';
-    import { EllipsisVertical, SquarePen, ArrowLeftRight, Trash } from 'lucide-vue-next';
+    import { EllipsisVertical, Sparkle, SquarePen, ArrowLeftRight, Trash } from 'lucide-vue-next';
     import ContentEditor from '@Pages/versions/_components/editors/content-editor/ContentEditor.vue';
 
     export default {
         name: 'StepNodeBasicContent',
         inject: ['versionState'],
-        components: { Dropdown, ContentEditor, EllipsisVertical, SquarePen, ArrowLeftRight, Trash },
+        components: { Dropdown, ContentEditor, EllipsisVertical, Sparkle, SquarePen, ArrowLeftRight, Trash },
         props: {
             stepId: { required: true },
             feature: { type: Object, required: true }
+        },
+        computed: {
+            versionForm() {
+                return this.versionState.versionForm;
+            }
         },
         methods: {
             handleEdit(close) {

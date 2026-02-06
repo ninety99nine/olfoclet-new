@@ -25,6 +25,7 @@ class UssdSession extends Model
     protected $casts = [
         'successful' => 'boolean',
         'simulated' => 'boolean',
+        'history' => 'array'
     ];
 
     /**
@@ -36,6 +37,7 @@ class UssdSession extends Model
         'msisdn','shortcode','country','network','session_id','successful','error_message',
         'total_steps','open_flags_count','simulated','last_step_content',
         'total_duration_ms','ussd_account_id','app_id',
+        'history'
     ];
 
     /**

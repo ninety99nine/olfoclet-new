@@ -3,16 +3,40 @@
         <template #content>
             <div>
                 <p class="text-lg font-bold border-b border-gray-300 border-dashed pb-4 mb-6">Edit Step</p>
+
                 <div v-if="step" class="space-y-6">
                     <Input label="Step name" v-model="stepName" placeholder="e.g. Main Menu" />
-                    <div class="flex items-center justify-between gap-4">
-                        <label class="text-sm font-medium text-slate-900">Set as first step</label>
-                        <Switch v-model="isFirstStep" />
+
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between gap-4">
+                            <label class="text-sm font-semibold text-slate-900">Set as first step</label>
+                            <Switch v-model="isFirstStep" />
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            The first step is the entry point users see when they start the USSD session.
+                        </p>
                     </div>
-                    <p class="text-xs text-slate-500">The first step is the one users see when they start the session.</p>
+
+                    <div v-if="step.type == 'interactive_screen'" class="border-t border-slate-100 pt-6 space-y-2">
+                        <div class="flex items-center justify-between gap-4">
+                            <label class="text-sm font-semibold text-slate-900">End session at this step</label>
+                            <Switch v-model="isTerminal" />
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            If enabled, the network connection will close immediately after this message is displayed to the user.
+                        </p>
+                    </div>
                 </div>
+
                 <div class="mt-8 flex justify-end">
-                    <Button size="md" type="primary" mode="solid" :action="() => versionState.stepEditModal?.hideModal()" buttonClass="rounded-lg px-8">Done</Button>
+                    <Button
+                        size="md"
+                        type="primary"
+                        mode="solid"
+                        :action="() => versionState.stepEditModal?.hideModal()"
+                        buttonClass="rounded-lg px-8">
+                        Done
+                    </Button>
                 </div>
             </div>
         </template>
@@ -26,7 +50,7 @@ import Input from '@Partials/Input.vue';
 import Switch from '@Partials/Switch.vue';
 
 export default {
-    name: 'stepEditModal',
+    name: 'StepEditModal',
     components: { Modal, Button, Input, Switch },
     inject: ['versionState', 'notificationState'],
     watch: {
@@ -54,6 +78,19 @@ export default {
                     } else {
                         this.notificationState.showWarningNotification("App must have at least one starting step.", 5000);
                     }
+                }
+                this.versionState.saveState('Toggled first step status');
+            }
+        },
+        isTerminal: {
+            get() { return this.step?.is_terminal || false; },
+            set(val) {
+                if (this.step && this.step.is_terminal !== val) {
+                    const status = this.versionState.toggleStepTermination(this.versionState.currentStepId);
+                    this.notificationState.showInfoNotification(
+                        `Step set to ${status}.`,
+                        2000
+                    );
                 }
             }
         }

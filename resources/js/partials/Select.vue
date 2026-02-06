@@ -95,7 +95,7 @@
                             'w-full select-none bg-white border border-gray-300 rounded-md',
                             disabled ? 'cursor-not-allowed' : 'cursor-pointer'
                         ]">
-                        <div class="flex items-center justify-between py-2 px-3">
+                        <div class="flex items-center justify-between py-2 px-3 h-[34px]">
 
                             <!-- Custom Slot Support -->
                             <slot name="selectedOption" :selectedOption="selectedOption">

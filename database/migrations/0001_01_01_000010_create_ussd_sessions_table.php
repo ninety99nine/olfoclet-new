@@ -13,7 +13,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
 
             $table->string('msisdn', 20);
-            $table->string('shortcode', 16);
+            $table->string('shortcode', 16)->nullable();
             $table->string('country', 2)->nullable();
             $table->string('network', 40)->nullable();
             $table->string('session_id', 64)->nullable();
@@ -26,6 +26,8 @@ return new class extends Migration
 
             $table->boolean('simulated');
             $table->text('last_step_content')->nullable();
+
+            $table->json('history')->nullable();
 
             $table->foreignUuid('app_id')->constrained('apps')->cascadeOnDelete();
             $table->foreignUuid('ussd_account_id')->constrained('ussd_accounts')->cascadeOnDelete();

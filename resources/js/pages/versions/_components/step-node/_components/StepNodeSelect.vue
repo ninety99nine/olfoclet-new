@@ -10,10 +10,9 @@
             ]">
 
             <div class="flex items-center gap-2 min-w-0">
-                <ListFilter v-if="feature.source !== 'code'" size="14" class="text-indigo-600 shrink-0" />
-                <Code2 v-else size="14" class="text-amber-600 shrink-0" />
+                <ListFilter size="14" class="text-indigo-600 shrink-0" />
                 <span class="text-xs font-bold text-slate-700 capitalize leading-tight">
-                    {{ feature.source === 'code' ? 'Dynamic Menu' : 'Menu' }}
+                    Menu
                 </span>
                 <span v-if="isCollapsed" class="text-[9px] text-slate-500 truncate">
                     {{ feature.options?.length || 0 }} options • @{{ feature.variable || 'choice' }}
@@ -36,7 +35,7 @@
                                     <SquarePen size="14" /> Edit Menu
                                 </div>
                                 <div @click="(e) => removeFeature(() => toggleDropdown(e))" class="px-4 py-2.5 text-sm text-rose-700 hover:bg-rose-50 cursor-pointer flex items-center gap-2">
-                                    <Trash size="14" /> Delete Entire Menu
+                                    <Trash size="14" /> Delete Menu
                                 </div>
                             </div>
                         </template>
@@ -45,13 +44,31 @@
 
                 <ChevronDown size="14" :class="['text-slate-400 transition-transform duration-200', { '-rotate-90': isCollapsed }]" />
 
+                <template v-if="feature.source === 'list' && isCollapsed">
+                    <template v-for="(option, idx) in versionState.builder.features[feature.id].options" :key="idx">
+                        <Handle
+                            type="source"
+                            position="right"
+                            :id="`option-select#${feature.id}#${idx}`"
+                            :class="['absolute right-0 translate-y-0! nodrag nopan', { 'terminal-handle': option.is_terminal }]"
+                        />
+                    </template>
+                </template>
+                <template v-else-if="feature.source === 'code' && isCollapsed">
+                    <Handle
+                        type="source"
+                        position="right"
+                        :id="`code-select#${feature.id}`"
+                        class="absolute right-0 translate-y-0! nodrag nopan"
+                    />
+                </template>
             </div>
 
         </div>
 
         <div
             v-show="!isCollapsed"
-            class="flex flex-col bg-white border border-slate-200 rounded-b-lg overflow-hidden">
+            class="flex flex-col bg-white border border-slate-200 rounded-b-lg">
 
             <template v-if="feature.source === 'list'">
 
@@ -63,85 +80,102 @@
                     v-model="versionState.builder.features[feature.id].options">
 
                     <div
-                        :key="`opt-${feature.id}-${idx}`"
-                        v-for="(option, idx) in versionState.builder.features[feature.id].options"
-                        class="relative group/option flex items-center justify-between px-3 py-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                        class="relative"
+                        :key="`${feature.id}-${idx}`"
+                        v-for="(option, idx) in versionState.builder.features[feature.id].options">
 
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="text-[10px] font-bold text-slate-400 w-3 shrink-0">{{ idx + 1 }}.</span>
-                            <span class="text-xs text-slate-600 truncate">{{ option.label || 'Empty option' }}</span>
-                        </div>
+                        <div class="group/option flex items-center justify-between px-3 py-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
 
-                        <div class="flex items-center gap-1.5 pl-2"
-                            v-if="versionState.builder.features[feature.id].options.length > 1">
-
-                            <button
-                                @click.stop="removeOption(idx)"
-                                class="opacity-0 group-hover/option:opacity-100 p-1 text-slate-300 hover:text-rose-500 transition-all nodrag cursor-pointer">
-                                <Trash size="12" />
-                            </button>
-
-                            <div class="flex flex-col items-center justify-center opacity-0 group-hover/option:opacity-100 transition-all">
-                                <button
-                                    v-if="idx != 0"
-                                    @click.stop="moveOption(idx, -1)"
-                                    class="text-slate-300 hover:text-indigo-500 cursor-pointer p-0.5 nodrag">
-                                    <ChevronUp size="12" />
-                                </button>
-                                <button
-                                    v-if="idx != versionState.builder.features[feature.id].options.length - 1"
-                                    @click.stop="moveOption(idx, 1)"
-                                    class="text-slate-300 hover:text-indigo-500 cursor-pointer p-0.5 nodrag">
-                                    <ChevronDown size="12" />
-                                </button>
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span :class="['text-[10px] font-bold w-3 shrink-0', option.is_terminal ? 'text-amber-700 font-medium' : 'text-slate-400']">
+                                    {{ idx + 1 }}.
+                                </span>
+                                <span :class="['text-xs truncate', option.is_terminal ? 'text-amber-700 font-medium' : 'text-slate-600']">
+                                    {{ option.label || 'Empty option' }}
+                                </span>
+                                <LogOut v-if="option.is_terminal" size="10" class="text-amber-700 shrink-0" />
                             </div>
 
-                            <div class="option-drag-handle cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-400 transition-colors nodrag p-1">
-                                <GripVertical size="12" />
-                            </div>
+                            <div class="flex items-center gap-1.5 pl-2">
 
-                            <div class="relative w-2 h-4 flex items-center">
+                                <template v-if="versionState.builder.features[feature.id].options.length > 1">
+
+                                    <button
+                                        @click.stop="removeOption(idx)"
+                                        class="opacity-0 group-hover/option:opacity-100 p-1 text-slate-300 hover:text-rose-500 transition-all nodrag cursor-pointer">
+                                        <Trash size="12" />
+                                    </button>
+
+                                    <div class="flex flex-col items-center justify-center opacity-0 group-hover/option:opacity-100 transition-all">
+                                        <button
+                                            v-if="idx != 0"
+                                            @click.stop="moveOption(idx, -1)"
+                                            class="text-slate-300 hover:text-indigo-500 cursor-pointer p-0.5 nodrag">
+                                            <ChevronUp size="12" />
+                                        </button>
+                                        <button
+                                            v-if="idx != versionState.builder.features[feature.id].options.length - 1"
+                                            @click.stop="moveOption(idx, 1)"
+                                            class="text-slate-300 hover:text-indigo-500 cursor-pointer p-0.5 nodrag">
+                                            <ChevronDown size="12" />
+                                        </button>
+                                    </div>
+
+                                    <div class="option-drag-handle cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-400 transition-colors nodrag p-1">
+                                        <GripVertical size="12" />
+                                    </div>
+
+                                </template>
+
                                 <Handle
                                     type="source"
                                     position="right"
-                                    :id="`select-${feature.id}-opt-${idx}`"
-                                    class="static! translate-y-0! nodrag nopan"
+                                    :id="`option-select#${feature.id}#${idx}`"
+                                    :class="['absolute right-0 translate-y-0! nodrag nopan', { 'terminal-handle': option.is_terminal }]"
                                 />
+
                             </div>
 
                         </div>
-
                     </div>
 
                 </draggable>
 
+                <button
+                    @click="edit()"
+                    class="w-full py-2 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center justify-center gap-1 transition-colors border-t border-slate-100 cursor-pointer">
+                    <Plus size="12" /> Manage Options
+                </button>
+
             </template>
-
             <template v-else>
+                <div
+                    @click="edit()"
+                    class="relative flex items-center justify-between px-3 py-2.5 bg-slate-50/50 border-b border-slate-100 hover:bg-amber-50/50 transition-colors cursor-pointer group/code"
+                >
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-6 h-6 rounded border border-amber-200 bg-amber-100 flex items-center justify-center shrink-0">
+                            <Terminal size="12" class="text-amber-600" />
+                        </div>
 
-                <div class="relative flex flex-col items-center justify-center p-6 bg-slate-50/50 group/code">
-                    <div class="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center mb-2 border border-amber-100">
-                        <Terminal size="18" class="text-amber-600" />
+                        <span class="text-[10px] font-bold text-slate-500 truncate">
+                            {{ feature.language === 'php' ? 'PHP' : feature.language === 'javascript' ? 'JS' : 'Python' }} Options
+                        </span>
                     </div>
-                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Code Driven</span>
-                    <span class="text-[9px] text-slate-400 mt-1 capitalize">{{ feature.language || 'Logic' }} Script</span>
 
                     <Handle
                         type="source"
                         position="right"
                         class="block nodrag nopan!"
-                        :id="`select-${feature.id}-dynamic`"
+                        :id="`code-select#${feature.id}`"
                         :style="{ top: '50%', transform: 'translateY(-50%)' }"
                     />
+
+                    <div class="opacity-0 group-hover/code:opacity-100 transition-opacity pr-1">
+                        <SquarePen size="10" class="text-amber-500" />
+                    </div>
                 </div>
-
             </template>
-
-            <button
-                @click="edit()"
-                class="w-full py-2 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50 flex items-center justify-center gap-1 transition-colors border-t border-slate-100 cursor-pointer">
-                <Plus size="12" /> {{ feature.source === 'code' ? 'Edit Script' : 'Manage Options' }}
-            </button>
 
         </div>
 
@@ -152,15 +186,16 @@
 <script>
     import { Handle } from '@vue-flow/core';
     import Dropdown from '@Partials/Dropdown.vue';
+    import { capitalize } from '@Utils/stringUtils.js';
     import { VueDraggableNext } from 'vue-draggable-next';
-    import { ListFilter,EllipsisVertical,SquarePen,Trash,Plus,Code2,Terminal,GripVertical,ChevronDown, ChevronUp } from 'lucide-vue-next';
+    import { ListFilter,EllipsisVertical,SquarePen,Trash,Plus,Code2,Terminal,GripVertical,ChevronDown, ChevronUp, LogOut } from 'lucide-vue-next';
 
     export default {
         name: 'StepNodeSelect',
         inject: ['versionState', 'notificationState'],
         components: {
             Handle, Dropdown, ListFilter, EllipsisVertical, SquarePen, Trash, Plus, Code2,
-            Terminal, GripVertical, ChevronDown, ChevronUp, draggable: VueDraggableNext
+            Terminal, GripVertical, ChevronDown, ChevronUp, LogOut, draggable: VueDraggableNext
         },
         props: {
             stepId: { required: true },
@@ -172,6 +207,7 @@
             }
         },
         methods: {
+            capitalize,
             edit(close) {
                 this.versionState.setCurrentStepId(this.stepId);
                 this.versionState.setCurrentFeatureId(this.feature.id);
@@ -214,9 +250,17 @@
     transition: transform 0.2s, background-color 0.2s;
 }
 
+:deep(.vue-flow__handle.terminal-handle) {
+    background-color: #f59e0b; /* Amber-500 */
+}
+
 :deep(.vue-flow__handle:hover) {
     transform: scale(1.3) !important;
     background-color: #3730a3;
+}
+
+:deep(.vue-flow__handle.terminal-handle:hover) {
+    background-color: #d97706; /* Amber-600 */
 }
 
 .option-drag-handle {

@@ -7,9 +7,9 @@
 </template>
 
 <script>
-    import * as monaco from 'monaco-editor';
-    import OceanicNext from 'monaco-themes/themes/Oceanic Next.json';
-    import NightOwl from 'monaco-themes/themes/Night Owl.json';
+import * as monaco from 'monaco-editor';
+import NightOwl from 'monaco-themes/Night Owl.json';
+import OceanicNext from 'monaco-themes/Oceanic Next.json';
 
     export default {
         name: 'CodeEditor',
@@ -17,7 +17,7 @@
             modelValue: { type: String, default: '' },
             language: { type: String, default: 'php' },
             theme: { type: String, default: 'tokyo-night' },
-            options: { type: Object, default: () => ({ fontSize: 12 }) }
+            options: { type: Object, default: null }
         },
         emits: ['update:modelValue'],
         watch: {
@@ -61,7 +61,11 @@
                 renderLineHighlight: 'all',
                 fontFamily: "'Fira Code', 'Cascadia Code', monospace",
                 fontLigatures: true,
-                ...this.options
+                options: this.options ? this.options : {
+                    formatOnPaste: true,
+                    formatOnType: true,
+                    fontSize: 12
+                }
             });
 
             // Ensure editor layouts correctly when container size changes (fullscreen)

@@ -22,6 +22,7 @@
                 v-if="visible"
                 @click.stop="dismissable ? dismissModal() : null"
                 :class="[
+                    backdropClass,
                     'fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center',
                     /* Fullscreen or scrollOnContent both require center alignment and hidden overflow */
                     { 'items-center overflow-hidden': scrollOnContent || size === 'fullscreen' },
@@ -36,7 +37,7 @@
 
                         /* Layout Logic based on Size prop */
                         size === 'fullscreen'
-                            ? 'h-[calc(100vh-2rem)] md:h-[calc(100vh-5rem)] m-4 md:m-10 max-w-none'
+                            ? 'h-screen'
                             : {
                                 'max-w-sm': size === 'sm',
                                 'max-w-xl': size === 'md',
@@ -47,7 +48,7 @@
 
                     <div :class="[
                             { 'bg-white border border-gray-200 shadow-lg' : !bareMode },
-                            'relative rounded-xl dark:bg-neutral-800 dark:border-neutral-700 dark:shadow-neutral-700/70 flex flex-col h-full overflow-hidden'
+                            'relative rounded-xl dark:bg-neutral-800 dark:border-neutral-700 dark:shadow-neutral-700/70 flex flex-col h-full'
                         ]">
 
                         <button
@@ -180,6 +181,7 @@
             onHide: { type: [Function, null], default: null },
             onDismiss: { type: [Function, null], default: null },
             targetClass: { type: String, default: 'body' },
+            backdropClass: { type: [String, Object, Array], default: '' },
         },
         data() {
             return {
@@ -236,8 +238,11 @@
                 if (this.onHide) this.onHide();
             },
             dismissModal() {
+                console.log('stage 1');
                 if(this.dismissable) {
+                    console.log('stage 2');
                     if (this.onDismiss) {
+                        console.log('stage 3');
                         this.onDismiss();
                     }else{
                         this.hideModal();

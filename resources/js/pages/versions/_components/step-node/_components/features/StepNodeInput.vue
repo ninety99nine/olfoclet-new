@@ -33,22 +33,11 @@
             </div>
         </button>
 
-        <button v-if="feature.type === 'input' && !feature.next_step_id" @click="linkNextStep" class="mt-2 w-full flex items-center justify-center gap-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg py-1.5 transition-colors">
+        <button v-if="!feature.next_step_id" @click="linkNextStep" class="mt-2 w-full flex items-center justify-center gap-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-lg py-1.5 transition-colors">
             <Plus size="14" /> Link to next step
         </button>
 
-        <Handle v-if="feature.type === 'input'" type="source" position="right" :id="`input-${feature.id}`" class="block nodrag nopan!" />
-
-        <template v-else-if="feature.type === 'select'">
-            <Handle
-                v-for="(opt, idx) in (feature.options || [])"
-                :key="idx"
-                type="source"
-                position="right"
-                :id="`select-${feature.id}-opt-${idx}`"
-                class="block nodrag nopan!"
-            />
-        </template>
+        <Handle :id="`input#${feature.id}`" type="source" position="right" class="block nodrag nopan!" />
 
     </div>
 
@@ -71,8 +60,8 @@
                 if (close) close();
             },
             remove(close) {
-                this.versionState.removeStep(this.stepId);
-                close();
+                this.versionState.removeFeature(this.stepId, this.feature.id);
+                if (close) close();
             },
             linkNextStep() {
                 this.versionState.setCurrentStepId(this.stepId);

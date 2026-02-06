@@ -73,3 +73,19 @@ export function formatDuration(milliseconds, decimalPlaces = 0) {
   // No decimals requested → whole seconds
   return `${Math.floor(seconds)}s`;
 }
+
+/**
+ * Converts strings to camelCase (e.g., "first_name", "First-Name", "first name" -> "firstName")
+ * @param {string} value
+ * @returns {string}
+ */
+export function toCamelCase(value) {
+    if (!value) return '';
+
+    return value
+        .replace(/[-_]+/g, ' ')          // Replace underscores and hyphens with spaces
+        .replace(/[^\w\s]/g, '')         // Remove all non-word characters (except spaces)
+        .replace(/\s+(.)/g, (_, char) => char.toUpperCase()) // Capitalize char after spaces
+        .replace(/\s/g, '')              // Remove remaining spaces
+        .replace(/^(.)/, char => char.toLowerCase());        // Ensure first char is lowercase
+}

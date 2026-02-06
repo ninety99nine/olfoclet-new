@@ -13,7 +13,7 @@ class ShowUssdSessionsSummaryRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('viewAny', UssdSession::class);
+        return $this->user()->can('viewAny', [UssdSession::class, $this->route('app')]);
     }
 
     /**
@@ -31,8 +31,6 @@ class ShowUssdSessionsSummaryRequest extends FormRequest
             'country' => ['nullable', 'string', 'size:2'],
             'network' => ['nullable', 'string', 'max:40'],
             'shortcode' => ['nullable', 'string', 'max:16'],
-            'app_id' => ['nullable', 'uuid', 'exists:apps,id'],
-            'association' => ['nullable', Rule::in(['super_admin', 'admin', 'user'])],
             'date_range' => ['nullable', Rule::in(['today', 'this_week', 'this_month', 'this_year', 'custom'])],
         ];
     }

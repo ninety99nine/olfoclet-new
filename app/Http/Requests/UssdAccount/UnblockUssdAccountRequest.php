@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\UssdAccount;
 
+use App\Models\UssdAccount;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UnblockUssdAccountRequest extends FormRequest
@@ -11,7 +12,7 @@ class UnblockUssdAccountRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('unblock', $this->route('ussd_account'));
+        return $this->user()->can('unblock', [UssdAccount::class, $this->route('app'), $this->route('ussd_account')]);
     }
 
     /**

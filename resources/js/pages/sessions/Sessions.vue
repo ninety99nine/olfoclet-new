@@ -1006,7 +1006,7 @@
 
                     this.isLoadingSessionsSummary = true;
 
-                    const response = await axios.get('/api/ussd-sessions/summary', this.getParams(page));
+                    const response = await axios.get(`/api/apps/${this.app?.id}/ussd-sessions/summary`, this.getParams(page));
 
                     this.summary = response.data;
 
@@ -1024,7 +1024,7 @@
 
                     this.isLoadingSessions = true;
 
-                    const response = await axios.get('/api/ussd-sessions', this.getParams(page));
+                    const response = await axios.get(`/api/apps/${this.app?.id}/ussd-sessions`, this.getParams(page));
 
                     this.pagination = response.data;
                     this.sessions = this.pagination.data || [];
@@ -1040,9 +1040,7 @@
             },
             getParams(page) {
 
-                let params = {
-                    app_id: this.app?.id,
-                };
+                let params = {};
 
                 //  Search
                 if (this.isNotEmpty(this.searchQuery)) {

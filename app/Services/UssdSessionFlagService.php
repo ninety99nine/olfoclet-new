@@ -2,27 +2,24 @@
 
 namespace App\Services;
 
-use App\Enums\Association;
+use App\Models\App;
 use App\Models\UssdSessionFlag;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\UssdSessionFlagResource;
 use App\Http\Resources\UssdSessionFlagResources;
-use Illuminate\Support\Facades\DB;
 
 class UssdSessionFlagService extends BaseService
 {
     /**
-     * Show USSD session flags.
+     * Show ussd session flags.
      *
+     * @param App $app
      * @param array $data
      * @return UssdSessionFlagResources|array
      */
-    public function showUssdSessionFlags(array $data): UssdSessionFlagResources|array
+    public function showUssdSessionFlags(App $app, array $data): UssdSessionFlagResources|array
     {
-        /** @var User $user */
-        $user = Auth::user();
-
-        $appId          = $data['app_id'] ?? null;
         $status         = $data['status'] ?? null;
         $priority       = $data['priority'] ?? null;
         $category       = $data['category'] ?? null;
@@ -30,17 +27,11 @@ class UssdSessionFlagService extends BaseService
         $dateRangeEnd   = $data['date_range_end'] ?? null;
         $ussdSessionId  = $data['ussd_session_id'] ?? null;
         $dateRangeStart = $data['date_range_start'] ?? null;
-        $association   = isset($data['association']) ? Association::tryFrom($data['association']) : null;
 
-        if ($association === Association::SUPER_ADMIN) {
-            $query = UssdSessionFlag::query()->latest();
-        } else if (!empty($ussdSessionId)) {
-            $query = UssdSessionFlag::where('ussd_session_id', $ussdSessionId);
-        } else if (!empty($appId)) {
-            $query = UssdSessionFlag::where('app_id', $appId);
+        if (!empty($ussdSessionId)) {
+            $query = UssdSessionFlag::where('app_id', $app->id)->where('ussd_session_id', $ussdSessionId);
         } else {
-            $appIds = $user->apps()->pluck('apps.id');
-            $query = UssdSessionFlag::whereIn('app_id', $appIds);
+            $query = UssdSessionFlag::where('app_id', $app->id);
         }
 
         if (!empty($status))    $query->where('status', $status);
@@ -60,15 +51,17 @@ class UssdSessionFlagService extends BaseService
     }
 
     /**
-     * Create USSD session flag.
+     * Create ussd session flag.
      *
+     * @param App $app
      * @param array $data
      * @return array
      */
-    public function createUssdSessionFlag(array $data): array
+    public function createUssdSessionFlag(App $app, array $data): array
     {
         $data = [
             ...$data,
+            'app_id' => $app->id,
             'created_by' => Auth::user()->id
         ];
 
@@ -78,17 +71,14 @@ class UssdSessionFlagService extends BaseService
     }
 
     /**
-     * Get aggregated summary statistics for flags
+     * Show ussd session flags summary.
      *
+     * @param App $app
      * @param array $data
      * @return array
      */
-    public function showUssdSessionFlagsSummary(array $data): array
+    public function showUssdSessionFlagsSummary(App $app, array $data): array
     {
-        /** @var User $user */
-        $user = Auth::user();
-
-        $appId          = $data['app_id'] ?? null;
         $status         = $data['status'] ?? null;
         $priority       = $data['priority'] ?? null;
         $category       = $data['category'] ?? null;
@@ -96,17 +86,11 @@ class UssdSessionFlagService extends BaseService
         $dateRangeEnd   = $data['date_range_end'] ?? null;
         $ussdSessionId  = $data['ussd_session_id'] ?? null;
         $dateRangeStart = $data['date_range_start'] ?? null;
-        $association   = isset($data['association']) ? Association::tryFrom($data['association']) : null;
 
-        if ($association === Association::SUPER_ADMIN) {
-            $query = UssdSessionFlag::query()->latest();
-        } else if (!empty($ussdSessionId)) {
-            $query = UssdSessionFlag::where('ussd_session_id', $ussdSessionId);
-        } else if (!empty($appId)) {
-            $query = UssdSessionFlag::where('app_id', $appId);
+        if (!empty($ussdSessionId)) {
+            $query = UssdSessionFlag::where('app_id', $app->id)->where('ussd_session_id', $ussdSessionId);
         } else {
-            $appIds = $user->apps()->pluck('apps.id');
-            $query = UssdSessionFlag::whereIn('app_id', $appIds);
+            $query = UssdSessionFlag::where('app_id', $app->id);
         }
 
         if (!empty($status))    $query->where('status', $status);
@@ -124,11 +108,12 @@ class UssdSessionFlagService extends BaseService
 
         //  Total open / resolved
         $aggregates = (clone $query)->selectRaw('
-            COUNT(CASE WHEN status = "open" THEN 1 END)                    as total_open,
-            COUNT(CASE WHEN status = "open" AND priority = "critical" THEN 1 END) as total_critical_open,
-            COUNT(CASE WHEN status = "open" AND priority = "high" THEN 1 END)     as total_high_open,
-            COUNT(DISTINCT CASE WHEN status = "open" THEN ussd_session_id END)    as total_unique_sessions_with_open_flags,
-            COUNT(CASE WHEN status = "resolved" THEN 1 END)                as total_resolved
+            COUNT(CASE WHEN status = "open" THEN 1 END)                                 as total_open,
+            COUNT(CASE WHEN status = "open" AND priority = "critical" THEN 1 END)       as total_critical_open,
+            COUNT(CASE WHEN status = "open" AND priority = "high" THEN 1 END)           as total_high_open,
+            COUNT(DISTINCT CASE WHEN status = "open" THEN ussd_session_id END)          as total_unique_sessions_with_open_flags,
+            COUNT(CASE WHEN status = "resolved" THEN 1 END)                             as total_resolved,
+            COUNT(DISTINCT CASE WHEN status = "resolved" THEN ussd_session_id END)      as total_unique_sessions_with_resolved_flags
         ')->first();
 
         // Get the single most urgent open flag
@@ -170,33 +155,36 @@ class UssdSessionFlagService extends BaseService
             'total_critical_open'    => (int) $aggregates->total_critical_open,
             'total_high_open'        => (int) $aggregates->total_high_open,
             'total_unique_sessions_with_open_flags'        => (int) $aggregates->total_unique_sessions_with_open_flags,
+            'total_unique_sessions_with_resolved_flags'        => (int) $aggregates->total_unique_sessions_with_resolved_flags,
             'open_category_breakdown'           => $openCategoryBreakdown,
             'resolved_category_breakdown'       => $resolvedCategoryBreakdown,
 
             // Most urgent open flag details
-            'first_urgent_open_flag'         => $firstUrgentOpenFlag,
+            'most_urgent_open_flag'         => $firstUrgentOpenFlag,
         ];
     }
 
     /**
-     * Show USSD session flag.
+     * Show ussd session flag.
      *
+     * @param App $app
      * @param UssdSessionFlag $ussdSessionFlag
      * @return UssdSessionFlagResource
      */
-    public function showUssdSessionFlag(UssdSessionFlag $ussdSessionFlag): UssdSessionFlagResource
+    public function showUssdSessionFlag(App $app, UssdSessionFlag $ussdSessionFlag): UssdSessionFlagResource
     {
         return $this->showResource($ussdSessionFlag);
     }
 
     /**
-     * Update USSD session flag.
+     * Update ussd session flag.
      *
+     * @param App $app
      * @param UssdSessionFlag $ussdSessionFlag
      * @param array $data
      * @return array
      */
-    public function updateUssdSessionFlag(UssdSessionFlag $ussdSessionFlag, array $data): array
+    public function updateUssdSessionFlag(App $app, UssdSessionFlag $ussdSessionFlag, array $data): array
     {
         $ussdSessionFlag->update($data);
 
@@ -204,12 +192,13 @@ class UssdSessionFlagService extends BaseService
     }
 
     /**
-     * Delete USSD session flag.
+     * Delete ussd session flag.
      *
+     * @param App $app
      * @param UssdSessionFlag $ussdSessionFlag
      * @return array
      */
-    public function deleteUssdSessionFlag(UssdSessionFlag $ussdSessionFlag): array
+    public function deleteUssdSessionFlag(App $app, UssdSessionFlag $ussdSessionFlag): array
     {
         $deleted = $ussdSessionFlag->delete();
 
@@ -220,13 +209,14 @@ class UssdSessionFlagService extends BaseService
     }
 
     /**
-     * Resolve USSD session flag.
+     * Resolve ussd session flag.
      *
+     * @param App $app
      * @param UssdSessionFlag $ussdSessionFlag
      * @param array $data
      * @return array
      */
-    public function resolveUssdSessionFlag(UssdSessionFlag $ussdSessionFlag, array $data): array
+    public function resolveUssdSessionFlag(App $app, UssdSessionFlag $ussdSessionFlag, array $data): array
     {
         $ussdSessionFlag->update([
             'status' => 'resolved',
@@ -240,12 +230,13 @@ class UssdSessionFlagService extends BaseService
     }
 
     /**
-     * Unresolve USSD session flag.
+     * Unresolve ussd session flag.
      *
+     * @param App $app
      * @param UssdSessionFlag $ussdSessionFlag
      * @return array
      */
-    public function unresolveUssdSessionFlag(UssdSessionFlag $ussdSessionFlag): array
+    public function unresolveUssdSessionFlag(App $app, UssdSessionFlag $ussdSessionFlag): array
     {
         $ussdSessionFlag->update([
             'status' => 'open',

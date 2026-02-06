@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Http\Resources\UssdAccountResource;
 use App\Http\Resources\UssdAccountResources;
+use App\Models\App;
 use Carbon\Carbon;
 use Exception;
 
@@ -17,15 +18,15 @@ class UssdAccountService extends BaseService
     /**
      * Show USSD accounts list (paginated).
      *
+     * @param App $app
      * @param array $data
      * @return UssdAccountResources|array
      */
-    public function showUssdAccounts(array $data): UssdAccountResources|array
+    public function showUssdAccounts(App $app, array $data): UssdAccountResources|array
     {
         /** @var User $user */
         $user = Auth::user();
 
-        $appId     = $data['app_id'] ?? null;
         $status    = $data['status'] ?? null;
         $country   = $data['country'] ?? null;
         $network   = $data['network'] ?? null;
@@ -34,16 +35,8 @@ class UssdAccountService extends BaseService
         $dateRange = $data['date_range'] ?? null;
         $dateRangeEnd = $data['date_range_end'] ?? null;
         $dateRangeStart = $data['date_range_start'] ?? null;
-        $association = Association::tryFrom($data['association'] ?? null);
 
-        if ($association === Association::SUPER_ADMIN) {
-            $query = UssdAccount::query();
-        } elseif (!empty($appId)) {
-            $query = UssdAccount::where('app_id', $appId);
-        } else {
-            $appIds = $user->apps()->pluck('apps.id');
-            $query = UssdAccount::whereIn('app_id', $appIds);
-        }
+        $query = UssdAccount::where('app_id', $app->id);
 
         // Apply Filters
         if (!empty($network))           $query->where('network', $network);
@@ -86,15 +79,15 @@ class UssdAccountService extends BaseService
     /**
      * Show summary statistics for USSD accounts.
      *
+     * @param App $app
      * @param array $data
      * @return array
      */
-    public function showUssdAccountsSummary(array $data): array
+    public function showUssdAccountsSummary(App $app, array $data): array
     {
         /** @var User $user */
         $user = Auth::user();
 
-        $appId     = $data['app_id'] ?? null;
         $status    = $data['status'] ?? null;
         $country   = $data['country'] ?? null;
         $network   = $data['network'] ?? null;
@@ -103,16 +96,8 @@ class UssdAccountService extends BaseService
         $dateRange = $data['date_range'] ?? null;
         $dateRangeEnd = $data['date_range_end'] ?? null;
         $dateRangeStart = $data['date_range_start'] ?? null;
-        $association = Association::tryFrom($data['association'] ?? null);
 
-        if ($association === Association::SUPER_ADMIN) {
-            $query = UssdAccount::query();
-        } elseif (!empty($appId)) {
-            $query = UssdAccount::where('app_id', $appId);
-        } else {
-            $appIds = $user->apps()->pluck('apps.id');
-            $query = UssdAccount::whereIn('app_id', $appIds);
-        }
+        $query = UssdAccount::where('app_id', $app->id);
 
         // Apply Filters
         if (!empty($network))           $query->where('network', $network);
@@ -245,10 +230,11 @@ class UssdAccountService extends BaseService
     /**
      * Show USSD account.
      *
+     * @param App $app
      * @param UssdAccount $ussdAccount
      * @return UssdAccountResource
      */
-    public function showUssdAccount(UssdAccount $ussdAccount): UssdAccountResource
+    public function showUssdAccount(App $app, UssdAccount $ussdAccount): UssdAccountResource
     {
         return $this->showResource($ussdAccount);
     }
@@ -256,17 +242,18 @@ class UssdAccountService extends BaseService
     /**
      * Block USSD accounts.
      *
+     * @param App $app
      * @param array $accountIds
      * @return array
      * @throws Exception
      */
-    public function blockUssdAccounts(array $accountIds): array
+    public function blockUssdAccounts(App $app, array $accountIds): array
     {
-        $accounts = UssdAccount::whereIn('id', $accountIds)->get();
+        $accounts = UssdAccount::where('app_id', $app->id)->whereIn('id', $accountIds)->get();
 
         if ($total = $accounts->count()) {
             foreach ($accounts as $account) {
-                $this->blockUssdAccount($account);
+                $this->blockUssdAccount($app, $account);
             }
 
             return [
@@ -280,10 +267,11 @@ class UssdAccountService extends BaseService
     /**
      * Block USSD account.
      *
+     * @param App $app
      * @param UssdAccount $ussdAccount
      * @return array
      */
-    public function blockUssdAccount(UssdAccount $ussdAccount): array
+    public function blockUssdAccount(App $app, UssdAccount $ussdAccount): array
     {
         $alreadyBlocked = $ussdAccount->blocked_at !== null;
 
@@ -300,10 +288,11 @@ class UssdAccountService extends BaseService
     /**
      * Unblock USSD account.
      *
+     * @param App $app
      * @param UssdAccount $ussdAccount
      * @return array
      */
-    public function unblockUssdAccount(UssdAccount $ussdAccount): array
+    public function unblockUssdAccount(App $app, UssdAccount $ussdAccount): array
     {
         $alreadyUnblocked = $ussdAccount->blocked_at == null;
 
@@ -320,17 +309,18 @@ class UssdAccountService extends BaseService
     /**
      * Delete USSD accounts.
      *
+     * @param App $app
      * @param array $accountIds
      * @return array
      * @throws Exception
      */
-    public function deleteUssdAccounts(array $accountIds): array
+    public function deleteUssdAccounts(App $app, array $accountIds): array
     {
-        $accounts = UssdAccount::whereIn('id', $accountIds)->get();
+        $accounts = UssdAccount::where('app_id', $app->id)->whereIn('id', $accountIds)->get();
 
         if ($total = $accounts->count()) {
             foreach ($accounts as $account) {
-                $this->deleteUssdAccount($account);
+                $this->deleteUssdAccount($app, $account);
             }
 
             return [
@@ -344,10 +334,11 @@ class UssdAccountService extends BaseService
     /**
      * Delete USSD account.
      *
+     * @param App $app
      * @param UssdAccount $ussdAccount
      * @return array
      */
-    public function deleteUssdAccount(UssdAccount $ussdAccount): array
+    public function deleteUssdAccount(App $app, UssdAccount $ussdAccount): array
     {
         $deleted = $ussdAccount->delete();
 
@@ -360,12 +351,13 @@ class UssdAccountService extends BaseService
     /**
      * Show USSD account summary (only fields used in frontend cards).
      *
+     * @param App $app
      * @param UssdAccount $ussdAccount
      * @return array
      */
-    public function showUssdAccountSummary(UssdAccount $ussdAccount): array
+    public function showUssdAccountSummary(App $app, UssdAccount $ussdAccount): array
     {
-        $stats = UssdSession::where('ussd_account_id', $ussdAccount->id)
+        $stats = UssdSession::where('app_id', $app->id)->where('ussd_account_id', $ussdAccount->id)
             ->selectRaw('
                 COUNT(*) as total_sessions,
                 SUM(CASE WHEN successful = 1 THEN 1 ELSE 0 END) as successful_sessions,

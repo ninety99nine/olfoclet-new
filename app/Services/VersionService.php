@@ -9,20 +9,20 @@ use App\Services\BaseService;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\VersionResource;
 use App\Http\Resources\VersionResources;
+use App\Models\App;
 
 class VersionService extends BaseService
 {
     /**
      * Show versions.
      *
+     * @param App $app
      * @param array $data
      * @return VersionResources|array
      */
-    public function showVersions(array $data): VersionResources|array
+    public function showVersions(App $app, array $data): VersionResources|array
     {
-        $appId = $data['app_id'] ?? null;
-
-        $query = Version::where('app_id', $appId);
+        $query = Version::where('app_id', $app->id);
         if(!request()->has('_sort')) $query = $query->latest();
 
         return $this->setQuery($query)->getOutput();
@@ -31,11 +31,12 @@ class VersionService extends BaseService
     /**
      * Create version.
      *
+     * @param App $app
      * @param array $data
      * @return array
      * @throws Exception
      */
-    public function createVersion(array $data): array
+    public function createVersion(App $app, array $data): array
     {
         /** @var User $user */
         $user = Auth::user();
@@ -50,11 +51,10 @@ class VersionService extends BaseService
 
         $version = Version::create([
             ...$data,
+            'app_id' => $app->id,
             'builder' => $builder,
-            'created_by' => $user->id
+            'created_by' => $user->id,
         ]);
-
-
 
         return $this->showCreatedResource($version);
     }
@@ -62,11 +62,12 @@ class VersionService extends BaseService
     /**
      * Delete Versions.
      *
+     * @param App $app
      * @param array $versionIds
      * @return array
      * @throws Exception
      */
-    public function deleteVersions(array $versionIds): array
+    public function deleteVersions(App $app, array $versionIds): array
     {
         $versions = Version::whereIn('id', $versionIds)->get();
 
@@ -74,7 +75,7 @@ class VersionService extends BaseService
 
             foreach ($versions as $version) {
 
-                $this->deleteVersion($version);
+                $this->deleteVersion($app, $version);
 
             }
 
@@ -90,10 +91,11 @@ class VersionService extends BaseService
     /**
      * Show version.
      *
+     * @param App $app
      * @param Version $version
      * @return VersionResource
      */
-    public function showVersion(Version $version): VersionResource
+    public function showVersion(App $app, Version $version): VersionResource
     {
         return $this->showResource($version);
     }
@@ -101,11 +103,12 @@ class VersionService extends BaseService
     /**
      * Update version.
      *
+     * @param App $app
      * @param Version $version
      * @param array $data
      * @return array
      */
-    public function updateVersion(Version $version, array $data): array
+    public function updateVersion(App $app, Version $version, array $data): array
     {
         $version->update($data);
         return $this->showUpdatedResource($version);
@@ -114,10 +117,11 @@ class VersionService extends BaseService
     /**
      * Delete version.
      *
+     * @param App $app
      * @param Version $version
      * @return array
      */
-    public function deleteVersion(Version $version): array
+    public function deleteVersion(App $app, Version $version): array
     {
         $deleted = $version->forceDelete();
 
@@ -128,27 +132,17 @@ class VersionService extends BaseService
     }
 
     /**
-     * Get builder template.
+     * Get builder template (normalized: steps, features, validation_rules).
      *
      * @return array
      */
-    public function getBuilderTemplate(): array
+    private function getBuilderTemplate(): array
     {
-        $id = (string) Str::uuid();
-
         return [
-            'steps' => [
-                $id => [
-                    'type' => 'special',
-                    'position' => [
-                        'x' => 40,
-                        'y' => 60
-                    ],
-                    'data' => [
-                        'name' => 'Main Menu'
-                    ]
-                ]
-            ]
+            'steps' => [],
+            'features' => [],
+            'initial_step_id' => null,
+            'validation_rules' => (object) [],
         ];
     }
 }

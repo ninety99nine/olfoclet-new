@@ -12,7 +12,7 @@ class ShowUssdSessionFlagsRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('viewAny', UssdSessionFlag::class);
+        return $this->user()->can('viewAny', [UssdSessionFlag::class, $this->route('app')]);
     }
 
     /**
@@ -22,11 +22,10 @@ class ShowUssdSessionFlagsRequest extends FormRequest
     {
         return [
             'search'     => ['sometimes', 'string'],
-            'app_id'     => ['sometimes', 'uuid', 'exists:apps,id'],
-            'ussd_session_id' => ['sometimes', 'uuid', 'exists:ussd_sessions,id'],
             'status'     => ['sometimes', 'in:open,resolved'],
             'priority'   => ['sometimes', 'in:low,medium,high,critical'],
             'category'   => ['sometimes', 'string'],
+            'ussd_session_id' => ['sometimes', 'uuid', 'exists:ussd_sessions,id'],
         ];
     }
 }

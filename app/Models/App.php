@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relations\hasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\belongsToMany;
@@ -59,11 +59,31 @@ class App extends Model
     }
 
     /**
+     * Get versions.
+     *
+     * @return HasMany
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(Version::class);
+    }
+
+    /**
+     * Get business KPIs.
+     *
+     * @return HasMany
+     */
+    public function businessKpis(): HasMany
+    {
+        return $this->hasMany(BusinessKpi::class, 'app_id');
+    }
+
+    /**
      * Get deployments.
      *
-     * @return hasMany
+     * @return HasMany
      */
-    public function deployments(): hasMany
+    public function deployments(): HasMany
     {
         return $this->hasMany(Deployment::class);
     }

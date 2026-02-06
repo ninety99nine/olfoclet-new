@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Deployment;
 
+use App\Models\Deployment;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ShowDeploymentRequest extends FormRequest
@@ -11,7 +12,7 @@ class ShowDeploymentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('view', $this->route('deployment'));
+        return $this->user()->can('view', [Deployment::class, $this->route('app'), $this->route('deployment')]);
     }
 
     /**

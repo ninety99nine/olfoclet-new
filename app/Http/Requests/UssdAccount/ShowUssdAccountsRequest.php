@@ -13,7 +13,7 @@ class ShowUssdAccountsRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('viewAny', UssdAccount::class);
+        return $this->user()->can('viewAny', [UssdAccount::class, $this->route('app')]);
     }
 
     /**
@@ -28,9 +28,7 @@ class ShowUssdAccountsRequest extends FormRequest
             'date_range_start' => ['nullable', 'date'],
             'country' => ['nullable', 'string', 'size:2'],
             'network' => ['nullable', 'string', 'max:40'],
-            'app_id' => ['nullable', 'uuid', 'exists:apps,id'],
             'status' => ['nullable', Rule::in(['active', 'inactive', 'blocked'])],
-            'association' => ['nullable', Rule::in(['super_admin', 'admin', 'user'])],
             'date_range' => ['nullable', Rule::in(['today', 'this_week', 'this_month', 'this_year', 'custom'])],
         ];
     }

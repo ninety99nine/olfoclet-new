@@ -119,6 +119,9 @@
                 <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <p class="text-sm text-slate-500 font-medium">Resolved</p>
                     <p class="text-4xl font-bold text-slate-900 mt-2">{{ summary.total_resolved }}</p>
+                    <p class="text-sm text-slate-500 mt-1">
+                        from {{ summary.total_unique_sessions_with_resolved_flags }} session{{ summary.total_unique_sessions_with_resolved_flags !== 1 ? 's' : '' }}
+                    </p>
                 </div>
 
             </div>
@@ -408,19 +411,24 @@
                 <!-- Top Priority -->
                 <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <h3 class="text-base font-semibold text-slate-900 mb-4">Top Priority Now</h3>
-                    <div v-if="summary && summary.first_urgent_open_flag.id" class="space-y-4">
+                    <div v-if="isLoadingSummary || (summary && summary.most_urgent_open_flag.id)" class="space-y-4">
                         <div class="flex items-center gap-3">
-                            <span class="shrink-0 w-8 h-8 rounded-full bg-rose-100 text-rose-700 font-bold flex items-center justify-center text-sm">
-                                {{ summary.first_urgent_open_flag.priority.charAt(0).toUpperCase() }}
+                            <span :class="[
+                                isLoadingSummary ? 'bg-slate-100 text-slate-300' : 'bg-rose-100 text-rose-700',
+                                'shrink-0 w-8 h-8 rounded-full font-bold flex items-center justify-center text-sm'
+                            ]">
+                                {{ summary?.most_urgent_open_flag?.priority?.charAt(0)?.toUpperCase() || '?' }}
                             </span>
                             <div>
-                                <p class="text-sm font-medium text-slate-900">
-                                    <template v-if="summary.first_urgent_open_flag.priority == 'critical'">Critical</template>
-                                    <template v-else-if="summary.first_urgent_open_flag.priority == 'high'">High Priority</template>
-                                    <template v-else-if="summary.first_urgent_open_flag.priority == 'medium'">Medium Priority</template>
-                                    <template v-else-if="summary.first_urgent_open_flag.priority == 'low'">Low Priority</template>
+                                <Skeleton v-if="isLoadingSummary" width="w-20" class="shrink-0 mb-2"></Skeleton>
+                                <p v-else class="text-sm font-medium text-slate-900">
+                                    <template v-if="summary.most_urgent_open_flag.priority == 'critical'">Critical</template>
+                                    <template v-else-if="summary.most_urgent_open_flag.priority == 'high'">High Priority</template>
+                                    <template v-else-if="summary.most_urgent_open_flag.priority == 'medium'">Medium Priority</template>
+                                    <template v-else-if="summary.most_urgent_open_flag.priority == 'low'">Low Priority</template>
                                 </p>
-                                <p class="text-xs text-slate-500">{{ capitalize(summary.first_urgent_open_flag.comment || summary.first_urgent_open_flag.category) }}</p>
+                                <Skeleton v-if="isLoadingSummary" width="w-32" class="shrink-0"></Skeleton>
+                                <p v-else class="text-xs text-slate-500">{{ capitalize(summary.most_urgent_open_flag.comment || summary.most_urgent_open_flag.category) }}</p>
                             </div>
                         </div>
                         <Button
@@ -428,8 +436,9 @@
                             type="danger"
                             mode="solid"
                             class="w-full"
+                            :skeleton="isLoadingSummary"
                             buttonClass="w-full rounded-lg"
-                            :action="() => navigateToSession(summary.first_urgent_open_flag.ussd_session_id)">
+                            :action="isLoadingSummary ? null : () => navigateToSession(summary.most_urgent_open_flag.ussd_session_id)">
                             Jump to this Issue
                         </Button>
                     </div>
@@ -440,13 +449,13 @@
                 <div class="bg-white rounded-2xl border border-slate-200 py-6 shadow-sm">
                     <h3 class="text-base font-semibold text-slate-900 px-6 mb-4">Open Category</h3>
                     <dl
-                        v-if="isLoadingSummary"
-                        class="space-y-3 text-sm">
+                        class="text-sm"
+                        v-if="isLoadingSummary">
 
                         <div
                             :key="index"
                             v-for="(categoryBreakdown, index) in [1,2,3,4,5]"
-                            class="flex justify-between hover:bg-slate-100 transition-colors py-1.5 mx-3 px-3 rounded-lg">
+                            class="flex items-center justify-between hover:bg-slate-100 transition-colors py-1.5 mx-3 px-3 rounded-lg">
                             <dt class="text-slate-600">
                                 <Skeleton width="w-24" class="shrink-0"></Skeleton>
                             </dt>
@@ -477,13 +486,13 @@
                 <div class="bg-white rounded-2xl border border-slate-200 py-6 shadow-sm">
                     <h3 class="text-base font-semibold text-slate-900 px-6 mb-4">Resolved Category</h3>
                     <dl
-                        v-if="isLoadingSummary"
-                        class="space-y-3 text-sm">
+                        class="text-sm"
+                        v-if="isLoadingSummary">
 
                         <div
                             :key="index"
                             v-for="(categoryBreakdown, index) in [1,2,3,4,5]"
-                            class="flex justify-between hover:bg-slate-100 transition-colors py-1.5 mx-3 px-3 rounded-lg">
+                            class="flex items-center justify-between hover:bg-slate-100 transition-colors py-1.5 mx-3 px-3 rounded-lg">
                             <dt class="text-slate-600">
                                 <Skeleton width="w-24" class="shrink-0"></Skeleton>
                             </dt>
@@ -528,36 +537,36 @@
                 <!-- Presets -->
                 <div class="grid grid-cols-2 gap-3 mb-8">
 
-                <div
-                    :key="option.value"
-                    v-for="option in dateFilterOptions">
+                    <div
+                        :key="option.value"
+                        v-for="option in dateFilterOptions">
 
-                    <Button
-                        size="md"
-                        loaderType="primary"
-                        buttonClass="rounded-lg w-full"
-                        :action="() => applyDateFilter(option)"
-                        :type="selectedDateFilterOption.value === option.value ? 'primary' : 'light'"
-                        :mode="selectedDateFilterOption.value === option.value ? 'solid' : 'outline'">
-                        {{ option.label }}
-                    </Button>
+                        <Button
+                            size="md"
+                            loaderType="primary"
+                            buttonClass="rounded-lg w-full"
+                            :action="() => applyDateFilter(option)"
+                            :type="selectedDateFilterOption.value === option.value ? 'primary' : 'light'"
+                            :mode="selectedDateFilterOption.value === option.value ? 'solid' : 'outline'">
+                            {{ option.label }}
+                        </Button>
 
-                </div>
+                    </div>
 
-                <div
-                    class="col-span-2 space-y-4"
-                    v-if="selectedDateFilterOption.value === 'custom'">
+                    <div
+                        class="col-span-2 space-y-4"
+                        v-if="selectedDateFilterOption.value === 'custom'">
 
-                    <!-- Custom Range -->
-                    <Datepicker
-                    :range="true"
-                    class="w-full"
-                    v-model="dateRange"
-                    :showOutline="false"
-                    placeholder="Select Date Range"
-                    @change="() => applyDateFilter({ value: 'custom', label: 'Custom' })" />
+                        <!-- Custom Range -->
+                        <Datepicker
+                            :range="true"
+                            class="w-full"
+                            v-model="dateRange"
+                            :showOutline="false"
+                            placeholder="Select Date Range"
+                            @change="() => applyDateFilter({ value: 'custom', label: 'Custom' })" />
 
-                </div>
+                    </div>
 
                 </div>
 
@@ -1418,14 +1427,13 @@
                     if (this.formState.hasErrors) return;
 
                     const data = {
-                        app_id: this.app.id,
                         category: this.editForm.category,
                         priority: this.editForm.priority,
                         comment: this.editForm.comment.trim() || null,
                         ussd_session_step_id: this.editForm.ussd_session_step_id,
                     };
 
-                    const response = await axios.put(`/api/ussd-session-flags/${flagId}`, data);
+                    const response = await axios.put(`/api/apps/${this.app.id}/ussd-session-flags/${flagId}`, data);
 
                     const updatedFlag = response.data.ussd_session_flag;
 
@@ -1465,15 +1473,13 @@
 
                 try {
 
-                    const data = {
-                        app_id: this.app.id,
-                    };
+                    const data = {};
 
                     if(isNotEmpty(this.resolutionForm.comment)) {
                         data.resolution_comment = this.resolutionForm.comment;
                     }
 
-                    const response = await axios.post(`/api/ussd-session-flags/${flagId}/resolve`, data);
+                    const response = await axios.post(`/api/apps/${this.app.id}/ussd-session-flags/${flagId}/resolve`, data);
 
                     const resolvedFlag = response.data.ussd_session_flag;
 
@@ -1516,11 +1522,9 @@
 
                 try {
 
-                    const data = {
-                        app_id: this.app.id
-                    };
+                    const data = {};
 
-                    const response = await axios.post(`/api/ussd-session-flags/${flagId}/unresolve`, data);
+                    const response = await axios.post(`/api/apps/${this.app.id}/ussd-session-flags/${flagId}/unresolve`, data);
 
                     const unresolvedFlag = response.data.ussd_session_flag;
 
@@ -1561,13 +1565,9 @@
 
                 try {
 
-                    const config = {
-                        data: {
-                            app_id: this.app.id
-                        }
-                    }
+                    const config = {};
 
-                    await axios.delete(`/api/ussd-session-flags/${flagId}`, config);
+                    await axios.delete(`/api/apps/${this.app.id}/ussd-session-flags/${flagId}`, config);
 
                     const index = this.flags.findIndex(f => f.id === flagId);
 
@@ -1594,7 +1594,7 @@
             async showFlags(page = null) {
                 try {
                     this.isLoadingFlags = true;
-                    const response = await axios.get('/api/ussd-session-flags', this.getParams(page));
+                    const response = await axios.get(`/api/apps/${this.app.id}/ussd-session-flags`, this.getParams(page));
                     this.pagination = response.data;
                     this.flags = this.pagination.data || [];
                 } catch (error) {
@@ -1609,7 +1609,7 @@
             async showFlagsSummary() {
                 try {
                     this.isLoadingSummary = true;
-                    const response = await axios.get('/api/ussd-session-flags/summary', this.getParams());
+                    const response = await axios.get(`/api/apps/${this.app.id}/ussd-session-flags/summary`, this.getParams());
                     this.summary = response.data;
                 } catch (error) {
                     const message = error?.response?.data?.message || error?.message || 'Failed to fetch summary';
@@ -1622,7 +1622,6 @@
             },
             getParams(page = null) {
                 let params = {
-                    app_id: this.app.id,
                     _relationships: ['session.steps', 'createdBy', 'resolvedBy'].join(',')
                 };
 

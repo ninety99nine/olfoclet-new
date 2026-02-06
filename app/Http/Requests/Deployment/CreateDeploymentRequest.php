@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Deployment;
 
+use App\Models\Deployment;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CreateDeploymentRequest extends FormRequest
@@ -11,7 +12,7 @@ class CreateDeploymentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('create', Deployment::class);
+        return $this->user()->can('create', [Deployment::class, $this->route('app')]);
     }
 
     /**
@@ -20,7 +21,6 @@ class CreateDeploymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'app_id'                   => ['required', 'uuid', 'exists:apps,id'],
             'country'                  => ['required', 'string', 'size:2'],
             'network'                  => ['required', 'string', 'max:40'],
             'active'                   => ['sometimes', 'boolean'],

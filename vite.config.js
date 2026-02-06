@@ -11,7 +11,7 @@ export default defineConfig({
             refresh: true,
         }),
         tailwindcss(),
-        vue()
+        vue(),
     ],
     resolve: {
         alias: {
@@ -24,5 +24,5 @@ export default defineConfig({
             '@Layouts': path.resolve(__dirname, 'resources/js/layouts'),
             '@Partials': path.resolve(__dirname, 'resources/js/partials'),
         }
-    },
+    }
 });

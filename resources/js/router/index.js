@@ -54,11 +54,6 @@ const routes = [
                         component: () => import('@Pages/home/Home.vue')
                     },
                     {
-                        path: 'build',
-                        name: 'show-app-build',
-                        component: () => import('@Pages/home/Home.vue')
-                    },
-                    {
                         path: 'review',
                         name: 'show-app-review',
                         component: () => import('@Pages/review/Review.vue')
@@ -67,6 +62,21 @@ const routes = [
                         path: 'deploy',
                         name: 'show-app-deploy',
                         component: () => import('@Pages/home/Home.vue')
+                    },
+                    {
+                        path: 'versions',
+                        children: [
+                            {
+                                path: '',
+                                name: 'show-app-versions',
+                                component: () => import('@Pages/versions/Versions.vue')
+                            },
+                            {
+                                path: ':version_id',
+                                name: 'show-app-version',
+                                component: () => import('@Pages/versions/Version.vue')
+                            }
+                        ]
                     },
                     {
                         path: 'sessions',
@@ -122,6 +132,11 @@ const routes = [
                         path: 'business-kpis',
                         name: 'show-app-business-kpis',
                         component: () => import('@Pages/business-kpis/BusinessKpis.vue')
+                    },
+                    {
+                        path: 'business-kpis/:metric_id/records',
+                        name: 'show-app-metric-records',
+                        component: () => import('@Pages/business-kpis/MetricRecords.vue')
                     },
                     {
                         path: 'databases',

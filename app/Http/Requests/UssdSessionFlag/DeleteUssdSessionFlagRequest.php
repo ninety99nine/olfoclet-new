@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\UssdSessionFlag;
 
+use App\Models\UssdSessionFlag;
 use Illuminate\Foundation\Http\FormRequest;
 
 class DeleteUssdSessionFlagRequest extends FormRequest
@@ -11,7 +12,7 @@ class DeleteUssdSessionFlagRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('delete', $this->route('ussd_session_flag'));
+        return $this->user()->can('delete', [UssdSessionFlag::class, $this->route('app'), $this->route('ussd_session_flag')]);
     }
 
     /**

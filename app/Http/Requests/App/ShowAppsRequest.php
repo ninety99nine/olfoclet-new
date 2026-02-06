@@ -27,9 +27,7 @@ class ShowAppsRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'association' => ['sometimes', Rule::enum(Association::class)->only([Association::SUPER_ADMIN])],
-        ];
+        return [];
     }
 
     /**
@@ -39,8 +37,6 @@ class ShowAppsRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            'association.enum' => 'The association must be one of: ' . Arr::join([Association::SUPER_ADMIN->value], ', ', ' or '),
-        ];
+        return [];
     }
 }

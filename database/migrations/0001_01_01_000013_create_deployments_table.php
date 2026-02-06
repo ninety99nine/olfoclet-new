@@ -29,6 +29,7 @@ return new class extends Migration
             $table->text('transform_response_code');
 
             $table->foreignUuid('app_id')->constrained('apps')->cascadeOnDelete();
+            $table->foreignUuid('version_id')->nullable()->references('id')->on('versions')->nullOnDelete();
             $table->timestamps();
 
             $table->index('country');

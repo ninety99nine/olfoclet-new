@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\App;
 use App\Models\UssdSessionFlag;
 use App\Services\UssdSessionFlagService;
 use App\Http\Resources\UssdSessionFlagResource;
@@ -36,89 +37,100 @@ class UssdSessionFlagController extends Controller
      * Show ussd session flags.
      *
      * @param ShowUssdSessionFlagsRequest $request
+     * @param App $app
      * @return UssdSessionFlagResources|array
      */
-    public function showUssdSessionFlags(ShowUssdSessionFlagsRequest $request): UssdSessionFlagResources|array
+    public function showUssdSessionFlags(ShowUssdSessionFlagsRequest $request, App $app): UssdSessionFlagResources|array
     {
-        return $this->service->showUssdSessionFlags($request->validated());
+        return $this->service->showUssdSessionFlags($app, $request->validated());
     }
 
     /**
-     * Create a new USSD session flag.
+     * Create ussd session flag.
+     *
+     * @param CreateUssdSessionFlagRequest $request
+     * @param App $app
+     * @return array
      */
-    public function createUssdSessionFlag(CreateUssdSessionFlagRequest $request): array
+    public function createUssdSessionFlag(CreateUssdSessionFlagRequest $request, App $app): array
     {
-        return $this->service->createUssdSessionFlag($request->validated());
+        return $this->service->createUssdSessionFlag($app, $request->validated());
     }
 
     /**
-     * Show summary statistics for USSD session flags.
+     * Show USSD session flags summary.
      *
      * @param Request $request
+     * @param App $app
      * @return \Illuminate\Http\JsonResponse
      */
-    public function showUssdSessionFlagsSummary(ShowUssdSessionFlagsSummaryRequest $request)
+    public function showUssdSessionFlagsSummary(ShowUssdSessionFlagsSummaryRequest $request, App $app)
     {
-        return $this->service->showUssdSessionFlagsSummary($request->validated());
+        return $this->service->showUssdSessionFlagsSummary($app, $request->validated());
     }
 
     /**
      * Show ussd session flag.
      *
      * @param ShowUssdSessionFlagRequest $request
+     * @param App $app
      * @param UssdSessionFlag $ussd_session_flag
      * @return UssdSessionFlagResource
      */
-    public function showUssdSessionFlag(ShowUssdSessionFlagRequest $request, UssdSessionFlag $ussd_session_flag): UssdSessionFlagResource
+    public function showUssdSessionFlag(ShowUssdSessionFlagRequest $request, App $app, UssdSessionFlag $ussd_session_flag): UssdSessionFlagResource
     {
-        return $this->service->showUssdSessionFlag($ussd_session_flag);
+        return $this->service->showUssdSessionFlag($app, $ussd_session_flag);
     }
 
     /**
      * Update ussd session flag.
      *
      * @param UpdateUssdSessionFlagRequest $request
+     * @param App $app
      * @param UssdSessionFlag $ussd_session_flag
      * @return array
      */
-    public function updateUssdSessionFlag(UpdateUssdSessionFlagRequest $request, UssdSessionFlag $ussd_session_flag): array
+    public function updateUssdSessionFlag(UpdateUssdSessionFlagRequest $request, App $app, UssdSessionFlag $ussd_session_flag): array
     {
-        return $this->service->updateUssdSessionFlag($ussd_session_flag, $request->validated());
+        return $this->service->updateUssdSessionFlag($app, $ussd_session_flag, $request->validated());
     }
 
     /**
      * Delete ussd session flag.
      *
      * @param DeleteUssdSessionFlagRequest $request
+     * @param App $app
      * @param UssdSessionFlag $ussd_session_flag
      * @return array
      */
-    public function deleteUssdSessionFlag(DeleteUssdSessionFlagRequest $request, UssdSessionFlag $ussd_session_flag): array
+    public function deleteUssdSessionFlag(DeleteUssdSessionFlagRequest $request, App $app, UssdSessionFlag $ussd_session_flag): array
     {
-        return $this->service->deleteUssdSessionFlag($ussd_session_flag);
+        return $this->service->deleteUssdSessionFlag($app, $ussd_session_flag);
     }
 
     /**
      * Resolve ussd session flag.
      *
      * @param ResolveUssdSessionFlagRequest $request
+     * @param App $app
      * @param UssdSessionFlag $ussd_session_flag
      * @return array
      */
-    public function resolveUssdSessionFlag(ResolveUssdSessionFlagRequest $request, UssdSessionFlag $ussd_session_flag): array
+    public function resolveUssdSessionFlag(ResolveUssdSessionFlagRequest $request, App $app, UssdSessionFlag $ussd_session_flag): array
     {
-        return $this->service->resolveUssdSessionFlag($ussd_session_flag, $request->validated());
+        return $this->service->resolveUssdSessionFlag($app, $ussd_session_flag, $request->validated());
     }
 
     /**
      * Unresolve ussd session flag.
      *
      * @param UnresolveUssdSessionFlagRequest $request
+     * @param App $app
      * @param UssdSessionFlag $ussd_session_flag
      * @return array
      */
-    public function unresolveUssdSessionFlag(UnresolveUssdSessionFlagRequest $request, UssdSessionFlag $ussd_session_flag): array
+    public function unresolveUssdSessionFlag(UnresolveUssdSessionFlagRequest $request, App $app, UssdSessionFlag $ussd_session_flag): array
     {
-        return $this->service->unresolveUssdSessionFlag($ussd_session_flag);
+        return $this->service->unresolveUssdSessionFlag($app, $ussd_session_flag);
     }
 }

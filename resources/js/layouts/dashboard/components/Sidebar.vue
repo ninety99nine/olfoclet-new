@@ -130,16 +130,16 @@ export default {
             expandedMenus: {}, // Track expanded state for each menu
             menus: [
                 { name: 'Home', route: 'show-app-home', icon: HouseIcon },
-                { name: 'Build', route: 'show-app-build', icon: Code },
+                { name: 'Build', route: 'show-app-versions', icon: Code },
                 { name: 'Review', route: 'show-app-review', icon: Smartphone },
                 { name: 'Deploy', route: 'show-app-deployments', icon: Rocket },
-                { name: 'Issues', route: 'show-app-issues', icon: BadgeAlert },
-                { name: 'Resources', route: 'show-app-resources', icon: BookOpen, gap: true },
+                { name: 'Issues', route: 'show-app-issues', icon: BadgeAlert, gap: true },
                 { name: 'Sessions', route: 'show-app-sessions', relatedRoutes: ['show-app-session'], icon: Logs },
                 { name: 'Accounts', route: 'show-app-accounts', relatedRoutes: ['show-app-account'], icon: Users },
                 { name: 'Analytics', route: 'show-app-analytics', icon: ChartArea },
-                { name: 'Business KPI', route: 'show-app-business-kpis', icon: ChartCandlestick },
+                { name: 'Business KPI', route: 'show-app-business-kpis', icon: ChartCandlestick, gap: true },
                 { name: 'Databases', route: 'show-app-databases', icon: Database },
+                { name: 'Resources', route: 'show-app-resources', icon: BookOpen },
             ],
         };
     },

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\UssdAccount;
 
+use App\Models\UssdAccount;
 use Illuminate\Foundation\Http\FormRequest;
 
 class DeleteUssdAccountRequest extends FormRequest
@@ -11,7 +12,7 @@ class DeleteUssdAccountRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('delete', $this->route('ussd_account'));
+        return $this->user()->can('delete', [UssdAccount::class, $this->route('app'), $this->route('ussd_account')]);
     }
 
     /**

@@ -75,7 +75,7 @@
 
                         <!-- Custom Slot Support -->
                         <slot name="option" :option="option">
-                            <span class="truncate">{{ option.label }}</span>
+                            <span class="truncate">{{ option.label || option.value || option }}</span>
                         </slot>
 
                     </li>

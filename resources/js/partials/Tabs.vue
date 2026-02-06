@@ -2,8 +2,9 @@
 
     <div
         :class="[
-            'inline-flex flex-wrap items-center gap-1',
-            { 'bg-gray-100 rounded-lg p-1 dark:bg-neutral-800' : design == '1' }
+            'rounded-lg p-1 items-center gap-1',
+            { 'flex bg-gray-100' : design == '1' },
+            { 'inline-flex  flex-wrap' : design == '2' },
         ]">
 
         <template v-for="tab in tabs" :key="tab.value">

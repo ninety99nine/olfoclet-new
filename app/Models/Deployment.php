@@ -33,7 +33,7 @@ class Deployment extends Model
         'country','network','active','individual_replies','max_character_length',
         'incoming_format','transform_request_language','transform_request_code',
         'outgoing_format','transform_response_language','transform_response_code',
-        'app_id',
+        'version_id','app_id',
     ];
 
     /**
@@ -56,5 +56,15 @@ class Deployment extends Model
     public function app(): BelongsTo
     {
         return $this->belongsTo(App::class);
+    }
+
+    /**
+     * Get the version this deployment belongs to.
+     *
+     * @return BelongsTo
+     */
+    public function version(): BelongsTo
+    {
+        return $this->belongsTo(Version::class);
     }
 }

@@ -9,15 +9,14 @@ class CreateUssdSessionFlagRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('create', UssdSessionFlag::class);
+        return $this->user()->can('create', [UssdSessionFlag::class, $this->route('app')]);
     }
 
     public function rules(): array
     {
         return [
-            'ussd_session_step_id' => ['sometimes', 'uuid', 'exists:ussd_session_steps,id'],
+            'ussd_session_step_id' => ['nullable', 'uuid', 'exists:ussd_session_steps,id'],
             'ussd_session_id' => ['required', 'uuid', 'exists:ussd_sessions,id'],
-            'app_id'          => ['required', 'uuid', 'exists:apps,id'],
             'category'        => ['required', 'string', 'in:bug,ux,performance,content,security,feature-request,other'],
             'priority'        => ['required', 'in:low,medium,high,critical'],
             'comment'         => ['nullable', 'string', 'max:1000'],

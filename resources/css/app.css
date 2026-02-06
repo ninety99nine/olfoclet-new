@@ -14,9 +14,28 @@ html {
   scroll-behavior: smooth;
 }
 
+html.modal-open,
+body.modal-open {
+    overflow: hidden !important;
+    height: 100% !important;
+    /* Prevents the page from shifting if you have a scrollbar */
+    padding-right: var(--scrollbar-width, 0px);
+}
+
+/* import the necessary styles for Vue Flow to work */
+@import '@vue-flow/core/dist/style.css';
+
+/* import the default theme, this is optional but generally recommended */
+@import '@vue-flow/core/dist/theme-default.css';
+
 /** Classes for the displayed toast **/
 .Toastify__toast {
     border-radius: 16px !important;
+}
+
+.Toastify__toast.info{
+    color: #1e40af !important;
+    background: #dbeafe !important;
 }
 
 .Toastify__toast.success{

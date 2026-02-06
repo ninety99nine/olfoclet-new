@@ -7,6 +7,7 @@ use App\Models\UssdSession;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\UssdSessionResource;
 use App\Http\Resources\UssdSessionResources;
+use App\Models\App;
 use Illuminate\Support\Facades\DB;
 
 class UssdSessionService extends BaseService
@@ -14,15 +15,15 @@ class UssdSessionService extends BaseService
     /**
      * Show USSD sessions.
      *
+     * @param App $app
      * @param array $data
      * @return UssdSessionResources|array
      */
-    public function showUssdSessions(array $data): UssdSessionResources|array
+    public function showUssdSessions(App $app, array $data): UssdSessionResources|array
     {
         /** @var User $user */
         $user = Auth::user();
 
-        $appId = $data['app_id'] ?? null;
         $msisdn = $data['msisdn'] ?? null;
         $country = $data['country'] ?? null;
         $network = $data['network'] ?? null;
@@ -33,16 +34,8 @@ class UssdSessionService extends BaseService
         $successful = $data['successful'] ?? null;
         $dateRangeEnd = $data['date_range_end'] ?? null;
         $dateRangeStart = $data['date_range_start'] ?? null;
-        $association = isset($data['association']) ? Association::tryFrom($data['association']) : null;
 
-        if ($association === Association::SUPER_ADMIN) {
-            $query = UssdSession::query()->latest();
-        } else if (!empty($appId)) {
-            $query = UssdSession::where('app_id', $appId);
-        } else {
-            $appIds = $user->apps()->pluck('apps.id');
-            $query = UssdSession::whereIn('app_id', $appIds);
-        }
+        $query = UssdSession::where('app_id', $app->id);
 
         if (!empty($msisdn))        $query->where('msisdn', $msisdn);
         if (!empty($country))       $query->where('country', $country);
@@ -67,15 +60,15 @@ class UssdSessionService extends BaseService
     /**
      * Show USSD sessions summary.
      *
+     * @param App $app
      * @param array $data
      * @return array
      */
-    public function showUssdSessionsSummary(array $data): array
+    public function showUssdSessionsSummary(App $app, array $data): array
     {
         /** @var User $user */
         $user = Auth::user();
 
-        $appId = $data['app_id'] ?? null;
         $msisdn = $data['msisdn'] ?? null;
         $country = $data['country'] ?? null;
         $network = $data['network'] ?? null;
@@ -86,16 +79,8 @@ class UssdSessionService extends BaseService
         $simulated = isset($data['simulated']) ?? false;
         $dateRangeEnd = $data['date_range_end'] ?? null;
         $dateRangeStart = $data['date_range_start'] ?? null;
-        $association = isset($data['association']) ? Association::tryFrom($data['association']) : null;
 
-        if ($association === Association::SUPER_ADMIN) {
-            $query = UssdSession::query()->latest();
-        } else if (!empty($appId)) {
-            $query = UssdSession::where('app_id', $appId);
-        } else {
-            $appIds = $user->apps()->pluck('apps.id');
-            $query = UssdSession::whereIn('app_id', $appIds);
-        }
+        $query = UssdSession::where('app_id', $app->id);
 
         if ($simulated)             $query->where('simulated', 1);
         if (!empty($msisdn))        $query->where('msisdn', $msisdn);
@@ -150,10 +135,11 @@ class UssdSessionService extends BaseService
     /**
      * Show USSD session.
      *
+     * @param App $app
      * @param UssdSession $ussdSession
      * @return UssdSessionResource
      */
-    public function showUssdSession(UssdSession $ussdSession): UssdSessionResource
+    public function showUssdSession(App $app, UssdSession $ussdSession): UssdSessionResource
     {
         return $this->showResource($ussdSession);
     }

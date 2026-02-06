@@ -336,17 +336,32 @@
                             </div>
                         </dl>
 
-                        <div class="flex justify-end">
+                        <div class="space-y-4">
+
                             <Button
-                                size="sm"
+                                size="md"
                                 type="light"
                                 mode="outline"
                                 :leftIcon="Copy"
-                                buttonClass="rounded-lg"
                                 :skeleton="isLoadingSession"
+                                buttonClass="w-full rounded-lg"
                                 :copyContent="session?.session_id">
                                 <span class="ml-1">Copy Session ID</span>
                             </Button>
+
+
+                            <Button
+                                size="md"
+                                type="light"
+                                mode="outline"
+                                :leftIcon="Copy"
+                                class="w-full mb-4"
+                                :skeleton="isLoadingSession"
+                                :copyContent="session?.msisdn"
+                                buttonClass="w-full rounded-lg">
+                                <span class="ml-1">Copy Phone Number</span>
+                            </Button>
+
                         </div>
                     </div>
 
@@ -370,118 +385,202 @@
 
                         </div>
 
-                        <div v-if="flags.length" class="space-y-4 max-h-150 overflow-y-auto pr-2">
-                        <div
-                            v-for="flag in flags"
-                            :key="flag.id"
-                            class="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors duration-150 group relative">
-                            <!-- Header Line: Avatar + Name + Date + Menu -->
-                            <div class="flex items-center justify-between gap-4 mb-2">
-                            <div class="flex items-center gap-2 flex-1 min-w-0">
-                                <!-- Avatar -->
-                                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0 bg-gray-200 text-gray-700">
-                                {{ flag.created_by?.first_name?.charAt(0)?.toUpperCase() || 'T' }}
-                                </span>
+                        <div v-if="isLoadingSessionFlags" class="space-y-4 max-h-150 overflow-y-auto pr-2">
+                            <div
+                                v-for="flag in [1,2,3]"
+                                :key="flag.id"
+                                class="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors duration-150 group relative">
 
-                                <!-- Name -->
-                                <p class="font-medium text-slate-900 text-sm truncate">
-                                {{ flag.created_by?.first_name || 'Team' }}
-                                </p>
-                            </div>
+                                <!-- Header Line: Avatar + Name + Date + Menu -->
+                                <div class="flex items-center justify-between gap-4 mb-2">
 
-                            <!-- Date + Menu (always right-aligned) -->
-                            <div class="flex items-center gap-3 shrink-0">
-                                <span class="text-xs text-slate-500 whitespace-nowrap">
-                                {{ formattedRelativeDate(flag.created_at) }}
-                                </span>
+                                    <div class="flex items-center gap-2 flex-1 min-w-0">
 
-                                <Dropdown position="left" dropdownClasses="w-44">
-                                <template #trigger="props">
-                                    <EllipsisVertical
-                                    size="14"
-                                    @click="props.toggleDropdown"
-                                    class="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                    />
-                                </template>
-                                <template #content="props">
-                                    <div class="py-1">
-                                    <div
-                                        v-for="(flagMenu, index) in flagMenus(flag)"
-                                        :key="index"
-                                        @click="(event) => { flagMenu.action(flag, () => props.toggleDropdown(event)); }"
-                                        class="px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
-                                    >
-                                        {{ flagMenu.name }}
+                                        <!-- Avatar -->
+                                        <Skeleton width="w-6" height="h-6" class="shrink-0"></Skeleton>
+
+                                        <!-- Name -->
+                                        <Skeleton width="w-16" class="shrink-0"></Skeleton>
+
                                     </div>
+
+                                    <!-- Date + Menu (always right-aligned) -->
+                                    <div class="flex items-center gap-3 shrink-0">
+
+                                        <Skeleton width="w-16" class="shrink-0"></Skeleton>
+
+                                        <EllipsisVertical
+                                            size="14"
+                                            class="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                        />
                                     </div>
-                                </template>
-                                </Dropdown>
-                            </div>
-                            </div>
 
-                            <!-- Second line: All pills – always on their own row -->
-                            <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
-                            <!-- Priority (first – most important) -->
-                            <span class="text-xs px-2.5 py-0.5 rounded-full font-medium whitespace-nowrap"
-                                    :class="{
-                                    'bg-sky-100 text-sky-800': flag.priority === 'low',
-                                    'bg-amber-100 text-amber-800': flag.priority === 'medium',
-                                    'bg-orange-100 text-orange-800': flag.priority === 'high',
-                                    'bg-rose-100 text-rose-800': flag.priority === 'critical'
-                                    }">
-                                {{ flag.priority }}
-                            </span>
+                                </div>
 
-                            <!-- Category -->
-                            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium max-w-[180px] truncate">
-                                {{ flag.category }}
-                            </span>
+                                <!-- Second line: All pills -->
+                                <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
 
-                            <span v-if="flag.ussd_session_step_id"
-                                    class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 whitespace-nowrap">
-                                <span>step {{ getStepNumber(flag.ussd_session_step_id) }}</span>
-                            </span>
+                                    <!-- Priority -->
+                                    <Skeleton width="w-8" class="shrink-0"></Skeleton>
 
-                            <!-- Resolved -->
-                            <span v-if="flag.resolved"
-                                    class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium whitespace-nowrap">
-                                Resolved
-                            </span>
-                            </div>
+                                    <!-- Category -->
+                                    <Skeleton width="w-8" class="shrink-0"></Skeleton>
 
-                            <!-- Comment -->
-                            <p class="text-sm text-slate-600 leading-relaxed line-clamp-2">
-                            {{ flag.comment || 'No comment provided' }}
-                            </p>
+                                    <!-- Step -->
+                                    <Skeleton width="w-8" class="shrink-0"></Skeleton>
 
-                            <!-- Resolved details (if resolved) -->
-                            <div v-if="flag.status === 'resolved' && (flag.resolution_comment || flag.resolved_by)"
-                                class="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600">
-                            <p v-if="flag.resolution_comment" class="italic">
-                                "{{ flag.resolution_comment }}"
-                            </p>
-                            <p class="mt-1">
-                                Resolved by <span class="font-medium text-slate-800">
-                                {{ flag.resolved_by?.first_name || 'Team' }}
-                                </span>
-                                • {{ formattedRelativeDate(flag.resolved_at) }}
-                            </p>
-                            </div>
+                                    <!-- Resolved -->
+                                    <Skeleton width="w-8" class="shrink-0"></Skeleton>
 
-                            <!-- Resolve button (if open) -->
-                            <div v-if="flag.status === 'open'" class="mt-2 flex justify-end">
-                            <Button
-                                size="xs"
-                                mode="solid"
-                                type="success"
-                                :loading="resolvingFlags.includes(flag.id)"
-                                :action="() => showResolvableFlagModal(flag)"
-                                buttonClass="rounded-lg px-4 py-1.5 text-xs"
-                            >
-                                Resolve
-                            </Button>
+                                </div>
+
+                                <!-- Comment -->
+                                <Skeleton width="w-2/3" class="shrink-0 mb-2"></Skeleton>
+                                <Skeleton width="w-1/3" class="shrink-0"></Skeleton>
+
+                                <!-- Resolve button -->
+                                <div class="mt-2 flex justify-end">
+                                    <Button
+                                        size="xs"
+                                        mode="solid"
+                                        type="success"
+                                        :skeleton="true"
+                                        buttonClass="rounded-lg px-4 py-1.5 text-xs">
+                                        Resolve
+                                    </Button>
+                                </div>
+
                             </div>
                         </div>
+
+                        <div v-else-if="flags.length" class="space-y-4 max-h-150 overflow-y-auto pr-2">
+
+                            <div
+                                v-for="flag in flags"
+                                :key="flag.id"
+                                class="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors duration-150 group relative">
+
+                                <!-- Header Line: Avatar + Name + Date + Menu -->
+                                <div class="flex items-center justify-between gap-4 mb-2">
+
+                                    <div class="flex items-center gap-2 flex-1 min-w-0">
+
+                                        <!-- Avatar -->
+                                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0 bg-gray-200 text-gray-700">
+                                        {{ flag.created_by?.first_name?.charAt(0)?.toUpperCase() || 'T' }}
+                                        </span>
+
+                                        <!-- Name -->
+                                        <p class="font-medium text-slate-900 text-sm truncate">
+                                        {{ flag.created_by?.first_name || 'Team' }}
+                                        </p>
+
+                                    </div>
+
+                                    <!-- Date + Menu (always right-aligned) -->
+                                    <div class="flex items-center gap-3 shrink-0">
+
+                                        <span class="text-xs text-slate-500 whitespace-nowrap">
+                                        {{ formattedRelativeDate(flag.created_at) }}
+                                        </span>
+
+                                        <Dropdown position="left" dropdownClasses="w-44">
+                                            <template #trigger="props">
+                                                <EllipsisVertical
+                                                    size="14"
+                                                    @click="props.toggleDropdown"
+                                                    class="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                                />
+                                            </template>
+                                            <template #content="props">
+                                                <div class="py-1">
+                                                <div
+                                                    v-for="(flagMenu, index) in flagMenus(flag)"
+                                                    :key="index"
+                                                    @click="(event) => { flagMenu.action(flag, () => props.toggleDropdown(event)); }"
+                                                    class="px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">
+                                                    {{ flagMenu.name }}
+                                                </div>
+                                                </div>
+                                            </template>
+                                        </Dropdown>
+
+                                    </div>
+
+                                </div>
+
+                                <!-- Second line: All pills – always on their own row -->
+                                <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
+
+                                    <!-- Priority -->
+                                    <span class="text-xs px-2.5 py-0.5 rounded-full font-medium whitespace-nowrap"
+                                            :class="{
+                                            'bg-sky-100 text-sky-800': flag.priority === 'low',
+                                            'bg-amber-100 text-amber-800': flag.priority === 'medium',
+                                            'bg-orange-100 text-orange-800': flag.priority === 'high',
+                                            'bg-rose-100 text-rose-800': flag.priority === 'critical'
+                                            }">
+                                        {{ flag.priority }}
+                                    </span>
+
+                                    <!-- Category -->
+                                    <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium max-w-[180px] truncate">
+                                        {{ flag.category }}
+                                    </span>
+
+                                    <!-- Step -->
+                                    <span v-if="flag.ussd_session_step_id"
+                                            class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 whitespace-nowrap">
+                                        <span>step {{ getStepNumber(flag.ussd_session_step_id) }}</span>
+                                    </span>
+
+                                    <!-- Resolved -->
+                                    <span v-if="flag.resolved"
+                                            class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium whitespace-nowrap">
+                                        Resolved
+                                    </span>
+
+                                </div>
+
+                                <!-- Comment -->
+                                <p class="text-sm text-slate-600 leading-relaxed line-clamp-2">
+                                    {{ flag.comment || 'No comment provided' }}
+                                </p>
+
+                                <!-- Resolved details -->
+                                <div v-if="flag.status === 'resolved' && (flag.resolution_comment || flag.resolved_by)"
+                                    class="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600">
+
+                                    <p v-if="flag.resolution_comment" class="italic">
+                                        "{{ flag.resolution_comment }}"
+                                    </p>
+
+                                    <p class="mt-1">
+                                        Resolved by <span class="font-medium text-slate-800">
+                                        {{ flag.resolved_by?.first_name || 'Team' }}
+                                        </span>
+                                        • {{ formattedRelativeDate(flag.resolved_at) }}
+                                    </p>
+
+                                </div>
+
+                                <!-- Resolve button -->
+                                <div v-if="flag.status === 'open'" class="mt-2 flex justify-end">
+
+                                    <Button
+                                        size="xs"
+                                        mode="solid"
+                                        type="success"
+                                        :loading="resolvingFlags.includes(flag.id)"
+                                        :action="() => showResolvableFlagModal(flag)"
+                                        buttonClass="rounded-lg px-4 py-1.5 text-xs">
+                                        Resolve
+                                    </Button>
+
+                                </div>
+
+                            </div>
+
                         </div>
 
                     </div>
@@ -1175,7 +1274,6 @@
                     this.isCreatingFlag = true;
 
                     let data = {
-                        app_id: this.app.id,
                         priority: this.form.priority,
                         category: this.form.category,
                         ussd_session_id: this.sessionId
@@ -1189,7 +1287,7 @@
                         data.ussd_session_step_id = this.form.ussd_session_step_id;
                     }
 
-                    const response = await axios.post('/api/ussd-session-flags', data);
+                    const response = await axios.post(`/api/apps/${this.app.id}/ussd-session-flags`, data);
 
                     const flag = response.data.ussd_session_flag;
                     this.flagsPagination.meta.total += 1;
@@ -1236,14 +1334,13 @@
                     if (this.formState.hasErrors) return;
 
                     const data = {
-                        app_id: this.app.id,
                         category: this.editForm.category,
                         priority: this.editForm.priority,
                         comment: this.editForm.comment.trim() || null,
                         ussd_session_step_id: this.editForm.ussd_session_step_id,
                     };
 
-                    const response = await axios.put(`/api/ussd-session-flags/${flagId}`, data);
+                    const response = await axios.put(`/api/apps/${this.app.id}/ussd-session-flags/${flagId}`, data);
 
                     const updatedFlag = response.data.ussd_session_flag;
 
@@ -1283,11 +1380,10 @@
                 try {
 
                     const data = {
-                        app_id: this.app.id,
                         resolution_comment: this.resolutionForm.comment
                     };
 
-                    const response = await axios.post(`/api/ussd-session-flags/${flagId}/resolve`, data);
+                    const response = await axios.post(`/api/apps/${this.app.id}/ussd-session-flags/${flagId}/resolve`, data);
 
                     const resolvedFlag = response.data.ussd_session_flag;
 
@@ -1331,11 +1427,9 @@
 
                 try {
 
-                    const data = {
-                        app_id: this.app.id
-                    };
+                    const data = {};
 
-                    const response = await axios.post(`/api/ussd-session-flags/${flagId}/unresolve`, data);
+                    const response = await axios.post(`/api/apps/${this.app.id}/ussd-session-flags/${flagId}/unresolve`, data);
 
                     const unresolvedFlag = response.data.ussd_session_flag;
 
@@ -1376,13 +1470,9 @@
 
                 try {
 
-                    const config = {
-                        data: {
-                            app_id: this.app.id
-                        }
-                    }
+                    const config = {};
 
-                    await axios.delete(`/api/ussd-session-flags/${flagId}`, config);
+                    await axios.delete(`/api/apps/${this.app.id}/ussd-session-flags/${flagId}`, config);
 
                     const index = this.flags.findIndex(f => f.id === flagId);
 
@@ -1414,17 +1504,16 @@
                     let config = {
                         params: {
                             per_page: 50,
-                            app_id: this.app.id,
                             ussd_session_id: this.sessionId,
                             _relationships: ['createdBy', 'resolvedBy'].join(',')
                         },
                     };
 
                     if (isNotEmpty(page)) {
-                        params.page = page;
+                        config.params.page = page;
                     }
 
-                    const response = await axios.get('/api/ussd-session-flags', config);
+                    const response = await axios.get(`/api/apps/${this.app.id}/ussd-session-flags`, config);
 
                     this.flagsPagination = response.data;
                     this.flags = this.flagsPagination.data || [];
@@ -1445,12 +1534,11 @@
 
                     let config = {
                         params: {
-                            app_id: this.app.id,
                             _relationships: ['steps'].join(',')
                         }
                     };
 
-                    const response = await axios.get(`/api/ussd-sessions/${this.sessionId}`, config);
+                    const response = await axios.get(`/api/apps/${this.app.id}/ussd-sessions/${this.sessionId}`, config);
 
                     this.session = response.data;
 

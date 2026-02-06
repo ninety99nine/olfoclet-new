@@ -960,7 +960,7 @@ export default {
       try {
         this.isLoadingSummary = true;
 
-        const response = await axios.get('/api/ussd-accounts/summary', this.getParams());
+        const response = await axios.get(`/api/apps/${this.app?.id}/ussd-accounts/summary`, this.getParams());
 
         this.summary = response.data;
 
@@ -976,7 +976,7 @@ export default {
       try {
         this.isLoadingAccounts = true;
 
-        const response = await axios.get('/api/ussd-accounts', this.getParams(page));
+        const response = await axios.get(`/api/apps/${this.app?.id}/ussd-accounts`, this.getParams(page));
 
         this.pagination = response.data;
         this.accounts = this.pagination.data || [];
@@ -990,9 +990,7 @@ export default {
       }
     },
     getParams(page = null) {
-      let params = {
-        app_id: this.app?.id,
-      };
+      let params = {};
 
       if (this.isNotEmpty(this.searchQuery)) {
         params.search = this.searchQuery.trim();

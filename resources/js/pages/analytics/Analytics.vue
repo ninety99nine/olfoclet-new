@@ -1,1393 +1,1444 @@
-<!-- resources/js/pages/analytics/Analytics.vue -->
 <template>
-  <div class="min-h-screen bg-slate-50 pb-16">
-    <!-- Header -->
-    <div class="bg-white border-b border-slate-200 sticky top-0 z-10">
-      <div class="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-bold text-slate-900">Analytics & Insights</h1>
-          <p class="mt-1 text-sm text-slate-500">
-            USSD Mobile Banking • {{ timeRangeLabel }}
-          </p>
+
+    <div class="min-h-screen bg-slate-50 pb-12">
+
+        <!-- Header + Controls -->
+        <div class="bg-white border-b border-slate-200">
+
+            <div class="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+
+                <div>
+                    <h1 class="text-2xl font-semibold text-slate-900">Analytics & Insights</h1>
+                    <p class="mt-1 text-sm text-slate-500">{{ app.name }} • {{ timeRangeLabel }}</p>
+                </div>
+
+                <div class="flex items-center gap-3">
+
+                    <!-- Tabs -->
+                    <Tabs v-model="currentRange" :tabs="quickRanges" design="1"></Tabs>
+
+                    <!-- Custom Button -->
+                    <Button
+                        size="md"
+                        type="light"
+                        mode="outline"
+                        buttonClass="rounded-lg"
+                        :action="showDateFilterModal">
+                        <div class="flex items-center space-x-2">
+                        <CalendarMinus2 size="16"></CalendarMinus2>
+                        <span>Custom</span>
+                        </div>
+                    </Button>
+
+                </div>
+
+            </div>
+
         </div>
 
-        <div class="flex items-center gap-3 flex-wrap">
-          <div class="flex bg-slate-100 rounded-lg p-1">
-            <button
-              v-for="range in quickRanges"
-              :key="range.value"
-              @click="setQuickRange(range.value)"
-              :class="[
-                'px-4 py-1.5 text-sm rounded-md transition-all',
-                currentRange === range.value
-                  ? 'bg-white shadow-sm text-indigo-700 font-medium'
-                  : 'text-slate-600 hover:text-slate-800'
-              ]"
-            >
-              {{ range.label }}
-            </button>
-          </div>
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-6 py-8">
 
-          <button
-            @click="showDateRangeModal = true"
-            class="px-5 py-2.5 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Custom
-            <span v-if="currentRange === 'custom'" class="ml-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full">
-              {{ customRangeLabel }}
-            </span>
-          </button>
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+                <!-- Always show the first 8 -->
+                <KpiCard
+                    v-for="(card, index) in firstEightKpis"
+                    :key="index"
+                    :title="card.title"
+                    :loading="loadingOverview"
+                    :value="card.value"
+                    :trend="card.trend"
+                    :trend-positive="card.trendPositive"
+                />
+
+                <!-- Show remaining cards only when toggled -->
+                <template v-if="showAllKpis">
+                    <KpiCard
+                        v-for="(card, index) in remainingKpis"
+                        :key="'extra-' + index"
+                        :title="card.title"
+                        :loading="loadingOverview"
+                        :value="card.value"
+                        :trend="card.trend"
+                        :trend-positive="card.trendPositive"
+                    />
+                </template>
+
+            </div>
+
+            <!-- Show More / Show Less Button -->
+            <div v-if="allKpiCards.length > 8" class="mb-8 text-center">
+                <button
+                    @click="showAllKpis = !showAllKpis"
+                    class="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 mx-auto hover:scale-105 transition-all duration-300 cursor-pointer">
+                    <span>{{ showAllKpis ? 'Show less' : 'Show more' }}</span>
+                    <svg
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        class="w-4 h-4 transition-transform"
+                        :class="{ 'rotate-180': showAllKpis }">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-12 gap-6 mb-12">
+
+                <!-- Sessions & Success Rate -->
+                <ChartCard title="Sessions & Success Rate" class="col-span-12">
+                    <div class="h-80 relative">
+                        <div v-if="loadingSessions" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                        </div>
+
+                        <!-- Empty state when no data -->
+                        <div v-if="!loadingSessions && !sessionsData?.labels?.length"
+                            class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                        <div class="text-center">
+                            <p class="text-lg font-medium">No data available</p>
+                            <p class="text-sm mt-1">No sessions recorded in this period</p>
+                        </div>
+                        </div>
+
+                        <canvas ref="sessionsChart"></canvas>
+                    </div>
+                </ChartCard>
+
+                <!-- New Users Trend -->
+                <ChartCard title="New Users Trend" class="col-span-6">
+                    <div class="h-72 relative">
+                        <div v-if="loadingNewUsers" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                        </div>
+
+                        <div v-if="!loadingNewUsers && !newUsersData?.labels?.length"
+                            class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                        <div class="text-center">
+                            <p class="text-lg font-medium">No new users</p>
+                            <p class="text-sm mt-1">No registrations in this period</p>
+                        </div>
+                        </div>
+
+                        <canvas ref="newUsersChart"></canvas>
+                    </div>
+                </ChartCard>
+
+                <!-- Return Users Trend -->
+                <ChartCard title="Return Users Trend" class="col-span-6">
+                    <div class="h-72 relative">
+                        <div v-if="loadingReturnUsers" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                        </div>
+
+                        <div v-if="!loadingReturnUsers && !returnUsersData?.labels?.length"
+                            class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                        <div class="text-center">
+                            <p class="text-lg font-medium">No return users</p>
+                            <p class="text-sm mt-1">No returning activity in this period</p>
+                        </div>
+                        </div>
+
+                        <canvas ref="returnUsersChart"></canvas>
+                    </div>
+                </ChartCard>
+
+                <!-- By Network -->
+                <ChartCard title="Sessions by Network" class="col-span-4">
+                    <div class="h-72 relative">
+                    <div v-if="loadingByNetwork" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                    </div>
+                    <div v-if="!loadingByNetwork && !byNetworkData.labels?.length"
+                        class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                        <p class="text-lg font-medium">No network data</p>
+                    </div>
+                    <canvas ref="byNetworkChart"></canvas>
+                    </div>
+                </ChartCard>
+
+                <!-- By Country -->
+                <ChartCard title="Sessions by Country" class="col-span-4">
+                    <div class="h-72 relative">
+                    <div v-if="loadingByCountry" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                    </div>
+                    <div v-if="!loadingByCountry && !byCountryData.labels?.length"
+                        class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                        <p class="text-lg font-medium">No country data</p>
+                    </div>
+                    <canvas ref="byCountryChart"></canvas>
+                    </div>
+                </ChartCard>
+
+                <!-- By Network & Country (Grouped Bar) -->
+                <ChartCard title="Sessions by Network & Country" class="col-span-4">
+                    <div class="h-80 relative">
+                    <div v-if="loadingByNetworkCountry" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                    </div>
+                    <div v-if="!loadingByNetworkCountry && !byNetworkCountryData.length"
+                        class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                        <p class="text-lg font-medium">No network-country breakdown</p>
+                    </div>
+                    <canvas ref="byNetworkCountryChart"></canvas>
+                    </div>
+                </ChartCard>
+
+                <!-- Peak Hours / Day-of-Week Heatmap -->
+                <ChartCard title="Peak Hours / Day-of-Week Heatmap" class="col-span-12">
+
+                    <div class="relative">
+                        <div v-if="loadingHeatmap" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                        </div>
+
+                        <div v-if="!loadingHeatmap && !heatmapData.matrix?.length"
+                            class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                            <div class="text-center">
+                                <p class="text-lg font-medium">No activity data</p>
+                                <p class="text-sm mt-1">No sessions recorded in this period</p>
+                            </div>
+                        </div>
+
+                        <!-- Heatmap content -->
+                        <div v-if="heatmapData.matrix?.length" class="p-6 flex flex-col h-full">
+                        <!-- Header - Days -->
+                        <div class="grid grid-cols-[80px_repeat(7,1fr)] border-b border-slate-200 pb-3 mb-2">
+                            <div></div> <!-- empty top-left corner -->
+                            <div v-for="day in heatmapData.days" :key="day"
+                                class="text-center font-medium text-slate-700 text-sm">
+                            {{ day }}
+                            </div>
+                        </div>
+
+                        <!-- Body: 24 rows × (hour label + 7 cells) -->
+                        <div class="flex-1 grid grid-cols-[80px_repeat(7,1fr)] gap-px bg-slate-50 overflow-y-auto">
+                            <template v-for="(hourRow, hourIndex) in heatmapData.matrix" :key="hourIndex">
+                            <!-- Hour label (left column) -->
+                            <div class="flex items-center justify-end pr-4 text-xs text-slate-500 font-medium bg-white">
+                                {{ hourIndex.toString().padStart(2, '0') }}:00
+                            </div>
+
+                            <!-- Cells for each day -->
+                            <div
+                                v-for="(value, dayIndex) in hourRow"
+                                :key="dayIndex"
+                                class="relative group "
+                                :style="getHeatmapCellStyle(value, heatmapData.max)"
+                                :title="`${heatmapData.days[dayIndex]} ${hourIndex.toString().padStart(2, '0')}:00 → ${value.toLocaleString()} sessions`"
+                            >
+                                <!-- Optional: show value on hover -->
+                                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold drop-shadow-md pointer-events-none">
+                                {{ value }}
+                                </div>
+                            </div>
+                            </template>
+                        </div>
+                        </div>
+                    </div>
+                </ChartCard>
+
+                <!-- Failed Sessions Trend -->
+                <ChartCard title="Failed Sessions Trend" class="col-span-12">
+                    <div class="h-72 relative">
+                        <div v-if="loadingFailedSessions" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                        </div>
+
+                        <div v-if="!loadingFailedSessions && !failedSessionsData?.labels?.length"
+                            class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                            <div class="text-center">
+                                <p class="text-lg font-medium">No failed sessions</p>
+                                <p class="text-sm mt-1">All sessions successful in this period</p>
+                            </div>
+                        </div>
+
+                        <canvas ref="failedSessionsChart"></canvas>
+                    </div>
+                </ChartCard>
+
+                <!-- Open vs Resolved Flags (Doughnut) -->
+                <ChartCard title="Open vs Resolved Flags" class="col-span-12 lg:col-span-4">
+                    <div class="h-72 relative">
+                        <div v-if="loadingFlagsStatus" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                        </div>
+                        <div v-if="!loadingFlagsStatus && flagsStatusData.total == 0"
+                            class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                            <p class="text-lg font-medium">No flag data</p>
+                        </div>
+                        <canvas ref="flagsStatusChart"></canvas>
+                    </div>
+                </ChartCard>
+
+                <!-- Open Flags by Priority (Horizontal Bar) -->
+                <ChartCard title="Open Flags by Priority" class="col-span-12 lg:col-span-4">
+                    <div class="h-72 relative">
+                        <div v-if="loadingFlagsPriority" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                        </div>
+                        <div v-if="!loadingFlagsPriority && !flagsPriorityData.length"
+                            class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                            <p class="text-lg font-medium">No priority data</p>
+                        </div>
+                        <canvas ref="flagsPriorityChart"></canvas>
+                    </div>
+                </ChartCard>
+
+                <!-- Open Flags by Category (Horizontal Bar) -->
+                <ChartCard title="Open Flags by Category" class="col-span-12 lg:col-span-4">
+                    <div class="h-72 relative">
+                        <div v-if="loadingFlagsCategory" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                        </div>
+                        <div v-if="!loadingFlagsCategory && !flagsCategoryData.length"
+                            class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                            <p class="text-lg font-medium">No category data</p>
+                        </div>
+                        <canvas ref="flagsCategoryChart"></canvas>
+                    </div>
+                </ChartCard>
+
+                <!-- By Device -->
+                <ChartCard title="Sessions by Device" class="col-span-4">
+                    <div class="h-72 relative">
+                    <div v-if="loadingByDevice" class="absolute inset-0 flex items-center justify-center bg-white/60 z-20">
+                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+                    </div>
+                    <div v-if="!loadingByDevice && !byDeviceData.labels?.length"
+                        class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white/80 z-10">
+                        <p class="text-lg font-medium">No device data</p>
+                    </div>
+                    <canvas ref="byDeviceChart"></canvas>
+                    </div>
+                </ChartCard>
+
+            </div>
+
         </div>
-      </div>
+
+        <!-- Date Filter Modal -->
+        <Modal
+            size="md"
+            :showFooter="false"
+            ref="dateFilterModal"
+            :scrollOnContent="false">
+
+            <template #content>
+
+                <p class="text-lg font-bold border-b border-gray-300 border-dashed pb-4 mb-4">Select Date Range</p>
+
+                <!-- Custom Range -->
+                <Datepicker
+                    :range="true"
+                    class="w-full"
+                    v-model="dateRange"
+                    :showOutline="false"
+                    @change="applyDateFilter"
+                    placeholder="Select Date Range" />
+
+            </template>
+
+        </Modal>
+
     </div>
 
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-6 py-8">
-      <!-- KPI Cards - Row 1 -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <KpiCard title="Total Sessions" :value="kpi.totalSessions" trend="+12.4%" :trend-positive="true" />
-        <KpiCard title="Success Rate" :value="kpi.successRate + '%'" trend="-1.8%" :trend-positive="false" />
-        <KpiCard title="Avg Duration" :value="kpi.avgDuration" trend="+4s" :trend-positive="false" />
-        <KpiCard title="Active Users (30d)" :value="kpi.activeUsers" trend="+19%" :trend-positive="true" />
-      </div>
-
-      <!-- KPI Cards - Row 2 -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        <KpiCard title="New Users (30d)" :value="kpi.newUsers" trend="+28%" :trend-positive="true" />
-        <KpiCard title="Retention Rate" :value="kpi.retentionRate + '%'" trend="-2.1%" :trend-positive="false" />
-        <KpiCard title="Open Flags" :value="kpi.openFlags" trend="+5" :trend-positive="false" />
-        <KpiCard title="Avg Flags/Session" :value="kpi.avgFlagsPerSession" trend="0.04" :trend-positive="false" />
-      </div>
-
-      <!-- Main Charts Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-
-        <!-- 1. Sessions & Success Rate -->
-        <ChartCard title="Sessions & Success Rate" class="lg:col-span-2">
-          <div class="h-80"><canvas ref="sessionsChartRef"></canvas></div>
-        </ChartCard>
-
-        <!-- 6. New Users Trend -->
-        <ChartCard title="New Users Trend">
-          <div class="h-72"><canvas ref="newUsersChartRef"></canvas></div>
-        </ChartCard>
-
-        <!-- 6. Return Users Trend -->
-        <ChartCard title="Return Users Trend">
-          <div class="h-72"><canvas ref="returnUsersChartRef"></canvas></div>
-        </ChartCard>
-
-        <!-- 4. Sessions by Network & Country -->
-       <div class="col-span-2 grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            <!-- 2. Sessions by Network -->
-            <ChartCard title="Sessions by Network">
-            <div class="h-72"><canvas ref="networkChartRef"></canvas></div>
-            </ChartCard>
-
-            <!-- 3. Sessions by Country -->
-            <ChartCard title="Sessions by Country">
-            <div class="h-72"><canvas ref="countryChartRef"></canvas></div>
-            </ChartCard>
-
-            <ChartCard title="Sessions by Network & Country">
-            <div class="h-72"><canvas ref="networkCountryChartRef"></canvas></div>
-            </ChartCard>
-
-        </div>
-
-        <!-- 7. Drop-off Screens -->
-        <ChartCard title="Drop-off Screens" class="lg:col-span-2">
-          <div class="h-80"><canvas ref="funnelChartRef"></canvas></div>
-        </ChartCard>
-
-<!-- Peak Hours / Day-of-Week Heatmap -->
-<ChartCard title="Peak Hours / Day-of-Week Heatmap" class="lg:col-span-2">
-  <div class="p-6 flex flex-col">
-    <!-- Header - Days -->
-    <div class="grid grid-cols-[80px_repeat(7,1fr)] border-b border-slate-200 pb-2">
-      <div></div> <!-- empty corner -->
-      <div
-        v-for="day in days"
-        :key="day"
-        class="text-center font-medium text-slate-700 text-sm"
-      >
-        {{ day }}
-      </div>
-    </div>
-
-    <!-- Heatmap body -->
-    <div class="flex-1 grid grid-cols-[80px_repeat(7,1fr)] gap-px bg-slate-100 overflow-y-auto rounded-sm">
-      <template v-for="(hourRow, hourIndex) in heatmapData" :key="hourIndex">
-        <!-- Hour label -->
-        <div
-          class="flex items-center justify-end py-0.5 pr-3 text-xs text-slate-600 font-medium bg-white"
-        >
-          {{ formatHour(hourIndex) }}
-        </div>
-
-        <!-- Cells for each day -->
-        <div
-          v-for="(value, dayIndex) in hourRow"
-          :key="dayIndex"
-          class="relative group transition-all duration-150 hover:z-10 hover:scale-[1.08] hover:shadow-md"
-          :style="getCellStyle(value)"
-          :title="`${days[dayIndex]} ${formatHour(hourIndex)} → ${value.toLocaleString()} sessions`"
-        >
-          <!-- Show value on hover (optional) -->
-          <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-90 transition-opacity text-white text-[10px] font-bold drop-shadow-md pointer-events-none">
-            {{ value }}
-          </div>
-        </div>
-      </template>
-    </div>
-  </div>
-</ChartCard>
-
-        <!-- Top Failure Reasons -->
-        <ChartCard title="Top Failure Reasons (Last 30 days)" class="lg:col-span-2">
-          <div class="h-80"><canvas ref="failureReasonsChartRef"></canvas></div>
-        </ChartCard>
-
-      <!-- Quality & Flags Section -->
-       <div class="col-span-2">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <ChartCard title="Open vs Resolved Flags">
-            <div class="h-72"><canvas ref="flagsStatusChartRef"></canvas></div>
-            </ChartCard>
-
-            <ChartCard title="Open Flags by Priority">
-            <div class="h-72"><canvas ref="flagsPriorityChartRef"></canvas></div>
-            </ChartCard>
-
-            <ChartCard title="Open Flags by Category">
-            <div class="h-72"><canvas ref="flagsCategoryChartRef"></canvas></div>
-            </ChartCard>
-    <!-- 5. Mobile vs Simulator Usage -->
-    <ChartCard title="Mobile vs Simulator Usage">
-        <div class="h-72"><canvas ref="deviceChartRef"></canvas></div>
-    </ChartCard>
-        </div>
-       </div>
-
-      </div>
-    </div>
-
-    <!-- Custom Date Range Modal -->
-    <div
-      v-if="showDateRangeModal"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      @click.self="showDateRangeModal = false"
-    >
-      <div class="bg-white rounded-xl p-6 w-full max-w-md">
-        <h2 class="text-xl font-semibold mb-4">Select Date Range</h2>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Start Date</label>
-            <input v-model="customStart" type="date" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">End Date</label>
-            <input v-model="customEnd" type="date" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
-          </div>
-        </div>
-        <div class="mt-6 flex justify-end gap-3">
-          <button @click="showDateRangeModal = false" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-            Cancel
-          </button>
-          <button @click="applyCustomRange" class="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
-            Apply
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
 </template>
 
-<script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { Chart, registerables } from 'chart.js'
-import 'chartjs-adapter-date-fns'
+<script>
 
-Chart.register(...registerables)
+    import axios from 'axios';
+    import 'chartjs-adapter-date-fns';
+    import Tabs from '@Partials/Tabs.vue';
+    import Modal from '@Partials/Modal.vue';
+    import Button from '@Partials/Button.vue';
+    import countries from '@Json/countries.json';
+    import { Chart, registerables } from 'chart.js';
+    import { CalendarMinus2 } from 'lucide-vue-next';
+    import Datepicker from '@Partials/Datepicker.vue';
+    import { formatDuration } from '@Utils/stringUtils';
+    import KpiCard from '@Pages/analytics/_components/KpiCard.vue';
+    import ChartCard from '@Pages/analytics/_components/ChartCard.vue';
 
-import { MatrixController, MatrixElement } from 'chartjs-chart-matrix';
+    Chart.register(...registerables);
 
-Chart.register(MatrixController, MatrixElement);
+    export default {
+        name: 'Analytics',
+        inject: ['appState', 'notificationState'],
+        components: { Tabs, Modal, Button, Datepicker, KpiCard, ChartCard, CalendarMinus2 },
 
-// ── State ────────────────────────────────────────────────────────────────
-const currentRange = ref('30d')
-const showDateRangeModal = ref(false)
-const customStart = ref('')
-const customEnd = ref('')
+        data() {
+            return {
+                dateRange: null,
+                currentRange: '30d',
+                showAllKpis: false,
 
-const chartInstances = ref({
-  sessions: null,
-  network: null,
-  country: null,
-  networkCountry: null,
-  device: null,
-  newUsers: null,
-  returnUsers: null,
-  funnel: null,
-  failureReasons: null,
-  flagsStatus: null,
-  flagsPriority: null,
-  flagsCategory: null
-})
-// Add new ref
-const sessionsChartRef = ref(null)
-const networkChartRef = ref(null)
-const countryChartRef = ref(null)
-const networkCountryChartRef = ref(null)
-const deviceChartRef = ref(null)
-const newUsersChartRef = ref(null)
-const returnUsersChartRef = ref(null)
-const funnelChartRef = ref(null)
-const failureReasonsChartRef = ref(null)
-const flagsStatusChartRef = ref(null)
-const flagsPriorityChartRef = ref(null)
-const flagsCategoryChartRef = ref(null)
-
-const kpi = ref({
-  totalSessions: '48,291',
-  successRate: 93.8,
-  avgDuration: '1m 47s',
-  activeUsers: '12,840',
-  newUsers: '3,214',
-  retentionRate: 67,
-  openFlags: 47,
-  avgFlagsPerSession: '0.04'
-})
-
-const quickRanges = [
-  { value: 'today', label: 'Today' },
-  { value: '7d',    label: '7 days' },
-  { value: '30d',   label: '30 days' },
-  { value: '90d',   label: '90 days' },
-  { value: 'ytd',   label: 'YTD' }
-]
-
-// ── Computed ─────────────────────────────────────────────────────────────
-const timeRangeLabel = computed(() => {
-  if (currentRange.value === 'custom') return customRangeLabel.value
-  return quickRanges.find(r => r.value === currentRange.value)?.label || 'Custom'
-})
-
-const customRangeLabel = computed(() => {
-  if (!customStart.value || !customEnd.value) return ''
-  const s = new Date(customStart.value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-  const e = new Date(customEnd.value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-  return `${s} – ${e}`
-})
-
-// Days of week
-const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-// Complete 24-hour data (hour 0 = 00:00 at the top)
-const heatmapData = ref([
-  [120, 140, 150, 155, 160, 180, 200],   // 00:00
-  [ 90, 100, 110, 115, 120, 140, 160],   // 01:00
-  [ 60,  70,  75,  80,  85, 100, 120],   // 02:00
-  [ 45,  50,  55,  60,  65,  80,  90],   // 03:00
-  [ 38,  42,  45,  48,  50,  65,  75],   // 04:00
-  [ 55,  65,  70,  75,  80, 110, 130],   // 05:00
-  [120, 180, 190, 200, 210, 280, 340],   // 06:00
-  [340, 520, 560, 580, 600, 720, 820],   // 07:00
-  [680, 950,1020,1080,1120,1280,1420],   // 08:00
-  [920,1320,1400,1480,1540,1780,1980],   // 09:00
-  [1050,1580,1680,1780,1840,2120,2320],  // 10:00
-  [1120,1720,1820,1920,1980,2280,2480],  // 11:00
-  [ 980,1540,1620,1700,1760,2020,2180],  // 12:00
-  [ 840,1280,1340,1400,1440,1680,1820],  // 13:00
-  [ 760,1020,1080,1120,1160,1380,1520],  // 14:00
-  [ 890,1140,1220,1280,1340,1580,1780],  // 15:00
-  [1240,1680,1780,1880,1980,2320,2580],  // 16:00
-  [1580,2140,2280,2420,2520,2980,3280],  // 17:00 ← peak!
-  [1420,1980,2080,2180,2280,2680,2920],  // 18:00
-  [ 980,1360,1420,1480,1540,1820,1980],  // 19:00
-  [ 640, 820, 860, 900, 940,1120,1240],  // 20:00
-  [ 420, 540, 560, 580, 600, 720, 820],  // 21:00
-  [ 280, 340, 360, 380, 400, 480, 540],  // 22:00
-  [ 180, 210, 220, 230, 240, 300, 340]   // 23:00
-])
-
-const maxValue = computed(() => Math.max(...heatmapData.value.flat()))
-
-// Format hour labels (show every 4 hours + midnight & last hour)
-const formatHour = (index) => {
-    return `${index.toString().padStart(2, '0')}:00`
-}
-
-// Color calculation (indigo-based, stronger contrast)
-const getCellStyle = (value) => {
-  if (value === 0) {
-    return { backgroundColor: '#f1f5f9' }
-  }
-
-  const intensity = Math.pow(value / maxValue.value, 0.75) // slightly softened curve
-  const alpha = 0.12 + intensity * 0.88
-
-  return {
-    backgroundColor: `rgba(10, 0, 180, ${alpha})`, // indigo-600
-    cursor: 'pointer'
-  }
-}
+                loadingHeatmap: false,
+                loadingOverview: false,
+                loadingSessions: false,
+                loadingNewUsers: false,
+                loadingByDevice: false,
+                loadingByNetwork: false,
+                loadingByCountry: false,
+                loadingReturnUsers: false,
+                loadingFlagsStatus: false,
+                loadingFlagsPriority: false,
+                loadingFlagsCategory: false,
+                loadingFailedSessions: false,
+                loadingByNetworkCountry: false,
 
 
-// ── Chart Management ─────────────────────────────────────────────────────
-const destroyCharts = () => {
-  Object.values(chartInstances.value).forEach(chart => chart?.destroy())
-  Object.keys(chartInstances.value).forEach(key => chartInstances.value[key] = null)
-}
+                overview: [],
+                flagsPriorityData: [],
+                flagsCategoryData: [],
+                byNetworkCountryData: [],
+                newUsersData: { labels: [], values: [] },
+                byDeviceData: { labels: [], values: [] },
+                byNetworkData: { labels: [], values: [] },
+                byCountryData: { labels: [], values: [] },
+                returnUsersData: { labels: [], values: [] },
+                heatmapData: { matrix: [], max: 1, days: [] },
+                failedSessionsData: { labels: [], values: [] },
+                flagsStatusData: { open: 0, resolved: 0, total: 0 },
+                sessionsData: { labels: [], sessions: [], successRate: [] },
 
-const createCharts = () => {
-  destroyCharts()
+                heatmapChart: null,
+                sessionsChart: null,
+                newUsersChart: null,
+                byDeviceChart: null,
+                byNetworkChart: null,
+                byCountryChart: null,
+                returnUsersChart: null,
+                flagsStatusChart: null,
+                flagsPriorityChart: null,
+                flagsCategoryChart: null,
+                failedSessionsChart: null,
+                byNetworkCountryChart: null,
 
-if (sessionsChartRef.value) {
-  chartInstances.value.sessions = new Chart(sessionsChartRef.value, {
-    type: 'bar',
-    data: {
-      labels: ['Jan 5','Jan 6','Jan 7','Jan 8','Jan 9','Jan 10','Jan 11','Jan 12','Jan 13','Jan 14','Jan 15','Jan 16','Jan 17','Jan 18'],
-      datasets: [
-        {
-          type: 'bar',
-          label: 'Sessions',
-          data: [4200,3800,4100,4600,5200,6100,6800,6400,5900,5500,6200,7100,6900,7400],
-
-          // Professional indigo with subtle vertical gradient
-          backgroundColor: (ctx) => {
-            const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.75)');   // indigo-500
-            gradient.addColorStop(1, 'rgba(99, 102, 241, 0.45)');
-            return gradient;
-          },
-          borderColor: 'rgb(99, 102, 241)',
-          borderWidth: 1,
-          borderRadius: 5,
-          barPercentage: 0.85,
-        },
-        {
-          type: 'line',
-          label: 'Success Rate (%)',
-          data: [92.1,93.4,94.2,91.8,93.7,95.1,94.6,92.9,93.2,94.8,93.9,92.4,94.1,95.3,],
-
-          borderColor: '#10b981',                    // emerald-500
-          backgroundColor: (context) => {
-            const chart = context.chart;
-            const { ctx, chartArea } = chart;
-            if (!chartArea) return null;
-
-            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.32)');
-            gradient.addColorStop(0.5, 'rgba(16, 185, 129, 0.16)');
-            gradient.addColorStop(1, 'rgba(16, 185, 129, 0.02)');
-            return gradient;
-          },
-
-          borderWidth: 2.5,
-          tension: 0.32,
-          fill: true,
-          pointBackgroundColor: '#ffffff',
-          pointBorderColor: '#10b981',
-          pointBorderWidth: 2,
-          pointRadius: 3,
-          pointHoverRadius: 6,
-          yAxisID: 'y1'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
-
-      plugins: {
-        legend: {
-          position: 'top',
-          align: 'start',
-          labels: {
-            color: '#334155',
-            font: { size: 13, weight: 500 },
-            boxWidth: 12,
-            padding: 16,
-            usePointStyle: true,
-            pointStyle: 'rectRounded'
-          }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-        }
-      },
-
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 8
-          }
-        },
-        y: {  // Left axis - Sessions
-          type: 'linear',
-          position: 'left',
-          beginAtZero: true,
-          title: {
-            display: true,
-            text: 'Sessions',
-            color: '#334155',
-            font: { size: 13, weight: 500 },
-            padding: { top: 0, bottom: 10 }
-          },
-          grid: {
-            color: '#e2e8f0',
-            drawBorder: false,
-          },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value.toLocaleString()
-          }
-        },
-        y1: {  // Right axis - Success Rate
-          type: 'linear',
-          position: 'right',
-          min: 80,
-          max: 100,
-          title: {
-            display: true,
-            text: 'Success Rate',
-            color: '#334155',
-            font: { size: 13, weight: 500 },
-            padding: { top: 0, bottom: 10 }
-          },
-          grid: {
-            drawOnChartArea: false,  // only want the grid lines for the primary axis to show
-          },
-          ticks: {
-            color: '#10b981',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value + '%'
-          }
-        }
-      }
-    }
-  });
-}
-// 2. Sessions by Network (Bar)
-if (networkChartRef.value) {
-  chartInstances.value.network = new Chart(networkChartRef.value, {
-    type: 'bar',
-    data: {
-      labels: ['Orange', 'MTN', 'Vodacom'],
-      datasets: [{
-        label: 'Sessions',
-        data: [29860, 16870, 1560],
-        backgroundColor: (ctx) => {
-          const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
-          gradient.addColorStop(0, 'rgba(249, 115, 22, 0.85)');   // orange-500 stronger at top
-          gradient.addColorStop(1, 'rgba(249, 115, 22, 0.55)');
-          return gradient;
-        },
-        borderColor: 'rgb(249, 115, 22)',
-        borderWidth: 1,
-        borderRadius: 6,           // rounded corners - modern look
-      }]
-    },
-    options: {
-      indexAxis: 'x',
-      responsive: true,
-      maintainAspectRatio: false,
-
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-        }
-      },
-
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 10
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: '#e2e8f0',
-            drawBorder: false,
-          },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value.toLocaleString()
-          }
-        }
-      }
-    }
-  });
-}
-
-// 3. Sessions by Country (Bar)
-if (countryChartRef.value) {
-  chartInstances.value.country = new Chart(countryChartRef.value, {
-    type: 'bar',
-    data: {
-      labels: ['Botswana', 'South Africa', 'Namibia', 'Zimbabwe'],
-      datasets: [{
-        label: 'Sessions',
-        data: [28410, 12450, 3850, 2580],
-        backgroundColor: (ctx) => {
-          const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
-          gradient.addColorStop(0, 'rgba(139, 92, 246, 0.85)');   // violet-500
-          gradient.addColorStop(1, 'rgba(139, 92, 246, 0.55)');
-          return gradient;
-        },
-        borderColor: 'rgb(139, 92, 246)',
-        borderWidth: 1,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      indexAxis: 'x',
-      responsive: true,
-      maintainAspectRatio: false,
-
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-        }
-      },
-
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 10
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: '#e2e8f0',
-            drawBorder: false,
-          },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value.toLocaleString()
-          }
-        }
-      }
-    }
-  });
-}
-
-  // 4. Sessions by Network & Country (Grouped Bar)
-if (networkCountryChartRef.value) {
-  chartInstances.value.networkCountry = new Chart(networkCountryChartRef.value, {
-    type: 'bar',
-    data: {
-      labels: ['Botswana', 'South Africa', 'Namibia'],
-      datasets: [
-        {
-          label: 'Orange',
-          data: [17800, 4200, 1900],
-          backgroundColor: (ctx) => {
-            const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(249, 115, 22, 0.85)');   // orange-500
-            gradient.addColorStop(1, 'rgba(249, 115, 22, 0.55)');
-            return gradient;
-          },
-          borderColor: 'rgb(249, 115, 22)',
-          borderWidth: 1,
-          borderRadius: 6,
-        },
-        {
-          label: 'MTN',
-          data: [9800, 7650, 1650],
-          backgroundColor: (ctx) => {
-            const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.85)');    // blue-500
-            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.55)');
-            return gradient;
-          },
-          borderColor: 'rgb(59, 130, 246)',
-          borderWidth: 1,
-          borderRadius: 6,
-        },
-        {
-          label: 'Vodacom',
-          data: [810, 600, 300],
-          backgroundColor: (ctx) => {
-            const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(34, 197, 94, 0.85)');     // green-500
-            gradient.addColorStop(1, 'rgba(34, 197, 94, 0.55)');
-            return gradient;
-          },
-          borderColor: 'rgb(34, 197, 94)',
-          borderWidth: 1,
-          borderRadius: 6,
-        }
-      ]
-    },
-    options: {
-      indexAxis: 'x',
-      responsive: true,
-      maintainAspectRatio: false,
-
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            color: '#334155',                // slate-700
-            font: { size: 13, weight: 500 },
-            padding: 16,
-            boxWidth: 14,
-            usePointStyle: true,
-            pointStyle: 'rectRounded'
-          }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-        }
-      },
-
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 10
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: '#e2e8f0',
-            drawBorder: false,
-          },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value.toLocaleString()
-          }
-        }
-      }
-    }
-  });
-}
-
-  // 6. New Users Trend (Line)
-if (newUsersChartRef.value) {
-  chartInstances.value.newUsers = new Chart(newUsersChartRef.value, {
-    type: 'line',
-    data: {
-      labels: ['Jan 5','Jan 6','Jan 7','Jan 8','Jan 9','Jan 10','Jan 11','Jan 12','Jan 13','Jan 14','Jan 15','Jan 16','Jan 17','Jan 18'],
-      datasets: [{
-        label: 'New Users',
-        data: [320, 280, 410, 520, 680, 920, 850, 720, 680, 610, 780, 950, 880, 1020],
-
-        // Professional indigo/violet tone
-        borderColor: '#6366f1',           // indigo-500
-        backgroundColor: (context) => {
-          const chart = context.chart;
-          const { ctx, chartArea } = chart;
-          if (!chartArea) return null;
-
-          // Create vertical gradient – stronger at top, fades to almost transparent
-          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'rgba(99, 102, 241, 0.35)');    // indigo-500 at 35% opacity
-          gradient.addColorStop(0.5, 'rgba(99, 102, 241, 0.18)');
-          gradient.addColorStop(1, 'rgba(99, 102, 241, 0.02)');    // very subtle near bottom
-          return gradient;
-        },
-
-        borderWidth: 2.5,
-        tension: 0.32,                    // slightly smoother curve
-        fill: true,
-
-        // Nice point styling for enterprise feel
-        pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#6366f1',
-        pointBorderWidth: 2,
-        pointRadius: 3.5,
-        pointHoverRadius: 6,
-        pointHoverBorderWidth: 2,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
-
-      plugins: {
-        legend: {
-          display: true,
-          position: 'top',
-          align: 'start',
-          labels: {
-            color: '#334155',           // slate-700
-            font: { size: 13, weight: 500 },
-            boxWidth: 12,
-            padding: 16,
-          }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)', // slate-900 with opacity
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-        }
-      },
-
-      scales: {
-        x: {
-          grid: {
-            display: false,
-          },
-          ticks: {
-            color: '#64748b',           // slate-500
-            font: { size: 12 },
-            padding: 8,
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: '#e2e8f0',           // very light slate
-            drawBorder: false,
-          },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value.toLocaleString()
-          }
-        }
-      }
-    }
-  });
-}
-
-  // 6. Return Users Trend (Line)
-if (returnUsersChartRef.value) {
-  chartInstances.value.returnUsers = new Chart(returnUsersChartRef.value, {
-    type: 'line',
-    data: {
-      labels: ['Jan 5','Jan 6','Jan 7','Jan 8','Jan 9','Jan 10','Jan 11','Jan 12','Jan 13','Jan 14','Jan 15','Jan 16','Jan 17','Jan 18'],
-      datasets: [{
-        label: 'Return Users',
-        data: [320, 280, 410, 520, 680, 920, 850, 720, 680, 610, 780, 950, 880, 1020],
-
-        // Professional violet/purple tone – distinct from indigo
-        borderColor: '#7c3aed',                 // violet-600
-        backgroundColor: (context) => {
-          const chart = context.chart;
-          const { ctx, chartArea } = chart;
-          if (!chartArea) return null;
-
-          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'rgba(124, 58, 237, 0.35)');   // violet at ~35% opacity
-          gradient.addColorStop(0.5, 'rgba(124, 58, 237, 0.18)');
-          gradient.addColorStop(1, 'rgba(124, 58, 237, 0.02)');   // very subtle fade
-          return gradient;
-        },
-
-        borderWidth: 2.5,
-        tension: 0.32,
-        fill: true,
-
-        // Consistent professional point styling
-        pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#7c3aed',
-        pointBorderWidth: 2,
-        pointRadius: 3.5,
-        pointHoverRadius: 6,
-        pointHoverBorderWidth: 2,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
-
-      plugins: {
-        legend: {
-          display: true,
-          position: 'top',
-          align: 'start',
-          labels: {
-            color: '#334155',
-            font: { size: 13, weight: 500 },
-            boxWidth: 12,
-            padding: 16,
-          }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-        }
-      },
-
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 8,
-          }
-        },
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: '#e2e8f0',
-            drawBorder: false,
-          },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value.toLocaleString()
-          }
-        }
-      }
-    }
-  });
-}
-
-// 7. Drop-off Screens (Horizontal Bar – consistent enterprise style)
-if (funnelChartRef.value) {
-  chartInstances.value.funnel = new Chart(funnelChartRef.value, {
-    type: 'bar',
-    data: {
-      labels: ['Main Menu', 'Send Money', 'Cash Out', 'Cash In', 'Pay For Goods'],
-      datasets: [{
-        label: 'Users',
-        data: [10000, 9200, 7800, 6200, 5100],
-        backgroundColor: (ctx) => {
-          const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300); // vertical gradient
-          gradient.addColorStop(0, 'rgba(59, 130, 246, 0.85)');   // blue-500 strong at top
-          gradient.addColorStop(1, 'rgba(59, 130, 246, 0.55)');   // softer toward bottom
-          return gradient;
-        },
-        borderColor: 'rgb(59, 130, 246)',
-        borderWidth: 1,
-        borderRadius: 6,
-        barThickness: 32,              // consistent with other horizontal bars
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-
-      plugins: {
-        legend: { display: false },
-        title: {
-          display: true,
-          color: '#1e293b',
-          font: { size: 15, weight: '600' },
-          padding: { bottom: 16 },
-          align: 'start'
-        },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-          callbacks: {
-            label: (context) => {
-              const value = context.raw;
-              const prev = context.dataIndex > 0
-                ? context.chart.data.datasets[0].data[context.dataIndex - 1]
-                : value;
-              const retention = context.dataIndex > 0
-                ? `${((value / prev) * 100).toFixed(1)}% retention`
-                : 'Entry point';
-              return `${value.toLocaleString()} users (${retention})`;
+                quickRanges: [
+                    { value: 'today', label: 'Today' },
+                    { value: '7d',    label: '7 days' },
+                    { value: '30d',   label: '30 days' },
+                    { value: '90d',   label: '90 days' },
+                    { value: 'ytd',   label: 'YTD' }
+                ],
             }
-          }
-        }
-      },
-
-      scales: {
-        x: {
-          beginAtZero: true,
-          title: {
-            display: true,
-            text: 'Users',
-            color: '#334155',
-            font: { size: 13, weight: 500 },
-            padding: { top: 12 }
-          },
-          grid: {
-            color: '#e2e8f0',
-            drawBorder: false,
-          },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value.toLocaleString()
-          }
         },
-        y: {
-          grid: { display: false },
-          ticks: {
-            color: '#334155',
-            font: { size: 13, weight: 500 },
-            padding: 12
-          }
-        }
-      }
-    }
-  });
-}
-
-// 9. Top Failure Reasons (Horizontal Bar – matches Open Flags by Category style)
-if (failureReasonsChartRef.value) {
-  chartInstances.value.failureReasons = new Chart(failureReasonsChartRef.value, {
-    type: 'bar',
-    data: {
-      labels: ['Invalid PIN', 'Timeout', 'Network Error', 'Insufficient Funds', 'System Error', 'Other'],
-      datasets: [{
-        label: 'Failures',
-        data: [42, 28, 15, 12, 8, 5],
-        backgroundColor: (ctx) => {
-          const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300); // vertical gradient
-          gradient.addColorStop(0, 'rgba(239, 68, 68, 0.85)');   // red-500 strong at top
-          gradient.addColorStop(1, 'rgba(239, 68, 68, 0.55)');   // softer toward bottom
-          return gradient;
+        watch: {
+            currentRange() {
+                if(this.currentRange != 'custom') {
+                    this.dateRange = null;
+                }
+                this.loadAllData();
+            }
         },
-        borderColor: 'rgb(239, 68, 68)',
-        borderWidth: 1,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-        }
-      },
-
-      scales: {
-        x: {
-          beginAtZero: true,
-          grid: { color: '#e2e8f0', drawBorder: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value.toLocaleString()
-          }
-        },
-        y: {
-          grid: { display: false },
-          ticks: {
-            color: '#334155',
-            font: { size: 13, weight: 500 },
-            padding: 12
-          }
-        }
-      }
-    }
-  });
-}
-// Open vs Resolved Flags (Doughnut)
-if (flagsStatusChartRef.value) {
-  chartInstances.value.flagsStatus = new Chart(flagsStatusChartRef.value, {
-    type: 'doughnut',
-    data: {
-      labels: ['Open', 'Resolved'],
-      datasets: [{
-        data: [47, 132],
-        backgroundColor: [
-          '#ef4444',  // red-500 (Open)
-          '#10b981'   // emerald-500 (Resolved)
-        ],
-        borderColor: '#ffffff',
-        borderWidth: 2,
-        hoverOffset: 12,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '70%',  // slightly larger cutout for elegance
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            color: '#334155',
-            font: { size: 13, weight: 500 },
-            padding: 20,
-            usePointStyle: true,
-            pointStyle: 'circle',
-          }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-        }
-      }
-    }
-  });
-}
-
-// Open Flags by Priority (Horizontal Bar)
-if (flagsPriorityChartRef.value) {
-  chartInstances.value.flagsPriority = new Chart(flagsPriorityChartRef.value, {
-    type: 'bar',
-    data: {
-      labels: ['Critical', 'High', 'Medium', 'Low'],
-      datasets: [{
-        label: 'Open Flags',
-        data: [8, 19, 34, 12],
-        backgroundColor: (ctx) => {
-          const gradients = [
-            ctx.chart.ctx.createLinearGradient(0, 0, 0, 300), // Critical - red
-            ctx.chart.ctx.createLinearGradient(0, 0, 0, 300), // High - orange
-            ctx.chart.ctx.createLinearGradient(0, 0, 0, 300), // Medium - yellow
-            ctx.chart.ctx.createLinearGradient(0, 0, 0, 300)  // Low - green
-          ];
-          gradients[0].addColorStop(0, 'rgba(239, 68, 68, 0.85)');
-          gradients[0].addColorStop(1, 'rgba(239, 68, 68, 0.55)');
-          gradients[1].addColorStop(0, 'rgba(249, 115, 22, 0.85)');
-          gradients[1].addColorStop(1, 'rgba(249, 115, 22, 0.55)');
-          gradients[2].addColorStop(0, 'rgba(234, 179, 8, 0.85)');
-          gradients[2].addColorStop(1, 'rgba(234, 179, 8, 0.55)');
-          gradients[3].addColorStop(0, 'rgba(34, 197, 94, 0.85)');
-          gradients[3].addColorStop(1, 'rgba(34, 197, 94, 0.55)');
-          return gradients[ctx.dataIndex];
-        },
-        borderWidth: 0,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-        }
-      },
-
-      scales: {
-        x: {
-          beginAtZero: true,
-          grid: { color: '#e2e8f0', drawBorder: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value.toLocaleString()
-          }
-        },
-        y: {
-          grid: { display: false },
-          ticks: {
-            color: '#334155',
-            font: { size: 13, weight: 500 },
-            padding: 12
-          }
-        }
-      }
-    }
-  });
-}
-
-// Open Flags by Category (Horizontal Bar)
-if (flagsCategoryChartRef.value) {
-  chartInstances.value.flagsCategory = new Chart(flagsCategoryChartRef.value, {
-    type: 'bar',
-    data: {
-      labels: ['Bug', 'Performance', 'Security', 'UX', 'Content'],
-      datasets: [{
-        label: 'Open Flags',
-        data: [18, 14, 9, 4, 2],
-        backgroundColor: (ctx) => {
-          const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
-          gradient.addColorStop(0, 'rgba(168, 85, 247, 0.85)');   // purple-500
-          gradient.addColorStop(1, 'rgba(168, 85, 247, 0.55)');
-          return gradient;
-        },
-        borderColor: 'rgb(168, 85, 247)',
-        borderWidth: 1,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)',
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-        }
-      },
-
-      scales: {
-        x: {
-          beginAtZero: true,
-          grid: { color: '#e2e8f0', drawBorder: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 12 },
-            padding: 12,
-            callback: value => value.toLocaleString()
-          }
-        },
-        y: {
-          grid: { display: false },
-          ticks: {
-            color: '#334155',
-            font: { size: 13, weight: 500 },
-            padding: 12
-          }
-        }
-      }
-    }
-  });
-}
-// 5. Mobile vs Simulator Usage (Donut)
-if (deviceChartRef.value) {
-  chartInstances.value.device = new Chart(deviceChartRef.value, {
-    type: 'doughnut',
-    data: {
-      labels: ['Mobile', 'Simulator'],
-      datasets: [{
-        data: [89, 11],
-        backgroundColor: [
-          '#6366f1',  // indigo-500 – Mobile (primary, trusted device)
-          '#f59e0b'   // amber-500 – Simulator (secondary, caution/less common)
-        ],
-        borderColor: '#ffffff',
-        borderWidth: 3,            // clean white border between segments
-        hoverOffset: 12,           // nice hover expansion effect
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '70%',               // slightly larger cutout = more elegant
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            color: '#334155',      // slate-700
-            font: {
-              size: 13,
-              weight: 500
+        computed: {
+            app() {
+                return this.appState.app;
             },
-            padding: 20,
-            usePointStyle: true,
-            pointStyle: 'circle',
-            generateLabels: (chart) => {
-              // Custom legend labels with percentages
-              const data = chart.data.datasets[0].data;
-              const total = data.reduce((sum, val) => sum + val, 0);
-              return chart.data.labels.map((label, i) => ({
-                text: `${label} (${((data[i] / total) * 100).toFixed(0)}%)`,
-                fillStyle: chart.data.datasets[0].backgroundColor[i],
-                strokeStyle: '#ffffff',
-                lineWidth: 2,
-                hidden: false,
-                index: i
-              }));
+            timeRangeLabel() {
+                if (this.currentRange === 'custom') return this.customRangeLabel;
+                const found = this.quickRanges.find(r => r.value === this.currentRange);
+                return found ? found.label : 'Custom';
+            },
+            customRangeLabel() {
+                if (!this.dateRange[0] || !this.dateRange[1]) return ''
+                const s = new Date(this.dateRange[0]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                const e = new Date(this.dateRange[1]).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                return `${s} – ${e}`
+            },
+            allKpiCards() {
+                if(this.overview.length == 0) return [];
+                console.log('this.overview');
+                console.log(this.overview);
+                console.log('this.overview.total_sessions');
+                console.log(this.overview.total_sessions);
+                return [
+                    {
+                        title: 'Total Sessions',
+                        value: this.overview.total_sessions.toString() || '—',
+                        trend: '-',
+                        trendPositive: true
+                    },
+                    {
+                        title: 'Success Rate',
+                        value: this.overview.success_rate ? this.overview.success_rate.toString() + '%' : '—',
+                        trend: '-',
+                        trendPositive: true
+                    },
+                    {
+                        title: 'Avg Session Duration',
+                        value: this.formatDuration(this.overview.avg_duration_ms) || '—',
+                        trend: '-',
+                        trendPositive: true
+                    },
+                    {
+                        title: 'Total Users (All time)',
+                        value: this.overview.total_users.toString() || '—',
+                        trend: '-',
+                        trendPositive: true
+                    },
+                    {
+                        title: 'New Users (this period)',
+                        value: this.overview.new_users.toString() || '—',
+                        trend: '-',
+                        trendPositive: true
+                    },
+                    {
+                        title: 'Return Users (this period)',
+                        value: this.overview.return_users.toString() || '—',
+                        trend: '-',
+                        trendPositive: true
+                    },
+                    {
+                        title: 'Lapsed Users (this period)',
+                        value: this.overview.lapsed_users.toString() || '—',
+                        trend: '-',
+                        trendPositive: true
+                    },
+                    {
+                        title: 'Open Flags',
+                        value: this.overview.open_flags.toString(),
+                        trend: '-',
+                        trendPositive: true
+                    },
+                    {
+                        title: 'Resolved Flags',
+                        value: this.overview.resolved_flags.toString(),
+                        trend: '-',
+                        trendPositive: true
+                    }
+                ];
+            },
+            firstEightKpis() {
+                return this.allKpiCards.slice(0, 8);
+            },
+            remainingKpis() {
+                return this.allKpiCards.slice(8);
             }
-          }
         },
-        tooltip: {
-          backgroundColor: 'rgba(30, 41, 59, 0.94)', // dark slate tooltip
-          titleColor: '#f1f5f9',
-          bodyColor: '#cbd5e1',
-          borderColor: '#475569',
-          borderWidth: 1,
-          cornerRadius: 8,
-          padding: 12,
-          callbacks: {
-            label: (context) => {
-              const value = context.raw;
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percentage = ((value / total) * 100).toFixed(1);
-              return `${context.label}: ${value}% (${percentage}%)`;
-            }
-          }
+        methods: {
+            formatDuration,
+            getCountryName(iso) {
+                if (!iso) return 'Unknown';
+                const country = countries.find(c => c.iso.toUpperCase() === iso.toUpperCase());
+                return country ? country.name : iso;
+            },
+            showDateFilterModal() {
+                this.$refs.dateFilterModal.showModal();
+            },
+            hideDateFilterModal() {
+                this.$refs.dateFilterModal.hideModal();
+            },
+            applyDateFilter() {
+                if(!this.dateRange) {
+                    this.currentRange = '30d';
+                    return;
+                }
+
+                this.currentRange = 'custom';
+                this.hideDateFilterModal();
+            },
+            async loadAllData() {
+                this.fetchOverview();
+                this.fetchSessionsOverTime();
+                this.fetchNewUsersOverTime();
+                this.fetchReturnUsersOverTime();
+                this.fetchByNetwork();
+                this.fetchByCountry();
+                this.fetchByNetworkAndCountry();
+                this.fetchByDevice();
+                this.fetchHeatmap();
+                this.fetchFailedSessionsOverTime();
+                this.fetchFlagsStatus();
+                this.fetchFlagsByPriority();
+                this.fetchFlagsByCategory();
+            },
+            getDateParams() {
+                const params = {
+                    range: this.currentRange,
+                    app_id: this.app.id
+                }
+
+                if (this.currentRange === 'custom') {
+                    params.start = this.dateRange[0];
+                    params.end   = this.dateRange[1]
+                }
+
+                return params;
+            },
+
+            async fetchOverview() {
+                try {
+                    this.loadingOverview = true;
+                    const response = await axios.get('/api/analytics/overview', { params: this.getDateParams() });
+                    this.overview = response.data;
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load analytics overview';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load analytics overview:', error);
+                } finally {
+                    this.loadingOverview = false;
+                }
+            },
+            async fetchSessionsOverTime() {
+                try {
+                    this.loadingSessions = true;
+                    const response = await axios.get('/api/analytics/sessions-over-time', { params: this.getDateParams() });
+                    this.sessionsData = response.data;
+                    this.renderSessionsChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load sessions chart';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load sessions chart:', error);
+                } finally {
+                    this.loadingSessions = false;
+                }
+            },
+            async fetchNewUsersOverTime() {
+                try {
+                    this.loadingNewUsers = true;
+                    const response = await axios.get('/api/analytics/new-users-over-time', { params: this.getDateParams() });
+                    this.newUsersData = response.data;
+                    this.renderNewUsersChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load new users chart';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load new users chart:', error);
+                } finally {
+                    this.loadingNewUsers = false;
+                }
+            },
+            async fetchReturnUsersOverTime() {
+                try {
+                    this.loadingReturnUsers = true;
+                    const response = await axios.get('/api/analytics/return-users-over-time', { params: this.getDateParams() });
+                    this.returnUsersData = response.data;
+                    this.renderReturnUsersChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load return users chart';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load return users chart:', error);
+                } finally {
+                    this.loadingReturnUsers = false;
+                }
+            },
+            async fetchByNetwork() {
+                try {
+                    this.loadingByNetwork = true;
+                    const response = await axios.get('/api/analytics/by-network', { params: this.getDateParams() });
+                    this.byNetworkData = {
+                        labels: response.data.map(item => item.network),
+                        values: response.data.map(item => item.sessions)
+                    };
+                    this.renderByNetworkChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load network breakdown';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load network breakdown:', error);
+                } finally {
+                    this.loadingByNetwork = false;
+                }
+            },
+            async fetchByCountry() {
+                try {
+                    this.loadingByCountry = true;
+                    const response = await axios.get('/api/analytics/by-country', { params: this.getDateParams() });
+                    this.byCountryData = {
+                        labels: response.data.map(item => this.getCountryName(item.country) || item.country || 'Unknown'),
+                        values: response.data.map(item => item.sessions)
+                    };
+                    this.renderByCountryChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load country breakdown';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load country breakdown:', error);
+                } finally {
+                    this.loadingByCountry = false;
+                }
+            },
+            async fetchByNetworkAndCountry() {
+                try {
+                    this.loadingByNetworkCountry = true;
+                    const response = await axios.get('/api/analytics/by-network-and-country', { params: this.getDateParams() });
+                    this.byNetworkCountryData = response.data.map(networkGroup => ({
+                        network: networkGroup.network,
+                        countries: networkGroup.countries.map(c => ({
+                            country: this.getCountryName(c.country) || c.country || 'Unknown',
+                            sessions: c.sessions
+                        }))
+                    }));
+
+                    this.renderByNetworkCountryChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load network-country breakdown';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load network-country breakdown:', error);
+                } finally {
+                    this.loadingByNetworkCountry = false;
+                }
+            },
+            async fetchByDevice() {
+                try {
+                    this.loadingByDevice = true;
+                    const response = await axios.get('/api/analytics/by-device', { params: this.getDateParams() });
+                    this.byDeviceData = {
+                        labels: response.data.map(item => item.device),
+                        values: response.data.map(item => item.sessions)
+                    };
+                    this.renderByDeviceChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load device breakdown';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load device breakdown:', error);
+                } finally {
+                    this.loadingByDevice = false;
+                }
+            },
+            async fetchHeatmap() {
+                try {
+                    this.loadingHeatmap = true;
+                    const response = await axios.get('/api/analytics/heatmap', { params: this.getDateParams() });
+                    this.heatmapData = response.data;
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load heatmap';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load heatmap:', error);
+                } finally {
+                    this.loadingHeatmap = false;
+                }
+            },
+            async fetchFlagsStatus() {
+                try {
+                    this.loadingFlagsStatus = true;
+                    const response = await axios.get('/api/analytics/flags-status', { params: this.getDateParams() });
+                    this.flagsStatusData = response.data;
+                    this.renderFlagsStatusChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load flags status';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load flags status:', error);
+                } finally {
+                    this.loadingFlagsStatus = false;
+                }
+            },
+            async fetchFlagsByPriority() {
+                try {
+                    this.loadingFlagsPriority = true;
+                    const response = await axios.get('/api/analytics/flags-by-priority', { params: this.getDateParams() });
+                    this.flagsPriorityData = response.data;
+                    this.renderFlagsPriorityChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load flags by priority';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load flags by priority:', error);
+                } finally {
+                    this.loadingFlagsPriority = false;
+                }
+            },
+            async fetchFlagsByCategory() {
+                try {
+                    this.loadingFlagsCategory = true;
+                    const response = await axios.get('/api/analytics/flags-by-category', { params: this.getDateParams() });
+                    this.flagsCategoryData = response.data;
+                    this.renderFlagsCategoryChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load flags by category';
+                    this.notificationState.showWarningNotification(message);
+                    this.formState.setServerFormErrors(error);
+                    console.error('Failed to load flags by category:', error);
+                } finally {
+                    this.loadingFlagsCategory = false;
+                }
+            },
+            async fetchFailedSessionsOverTime() {
+                try {
+                    this.loadingFailedSessions = true;
+                    const response = await axios.get('/api/analytics/failed-sessions-over-time', { params: this.getDateParams() });
+                    this.failedSessionsData = response.data;
+                    this.renderFailedSessionsChart();
+                } catch (error) {
+                    const message = error?.response?.data?.message || error?.message || 'Failed to load failed sessions chart';
+                    this.notificationState.showWarningNotification(message);
+                    console.error('Failed to load failed sessions chart:', error);
+                } finally {
+                    this.loadingFailedSessions = false;
+                }
+            },
+
+            renderSessionsChart() {
+                if (this.sessionsChart) this.sessionsChart.destroy();
+
+                const canvas = this.$refs.sessionsChart;
+                if (!canvas || !this.sessionsData.labels?.length) return;
+
+                this.sessionsChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: this.sessionsData.labels,
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'Sessions',
+                                data: this.sessionsData.sessions,
+                                backgroundColor: (ctx) => {
+                                    const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300)
+                                    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.75)')
+                                    gradient.addColorStop(1, 'rgba(99, 102, 241, 0.45)')
+                                    return gradient
+                                },
+                                borderColor: 'rgb(99, 102, 241)',
+                                borderWidth: 1,
+                                borderRadius: 5,
+                                barPercentage: 0.85
+                            },
+                            {
+                                type: 'line',
+                                label: 'Success Rate (%)',
+                                data: this.sessionsData.success_rate,
+                                borderColor: '#10b981',
+                                backgroundColor: (context) => {
+                                    const { ctx, chartArea } = context.chart
+                                    if (!chartArea) return null
+                                    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
+                                    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.32)')
+                                    gradient.addColorStop(0.5, 'rgba(16, 185, 129, 0.16)')
+                                    gradient.addColorStop(1, 'rgba(16, 185, 129, 0.02)')
+                                    return gradient
+                            },
+                                borderWidth: 2.5,
+                                tension: 0,
+                                fill: true,
+                                pointBackgroundColor: '#ffffff',
+                                pointBorderColor: '#10b981',
+                                pointBorderWidth: 2,
+                                pointRadius: 3,
+                                pointHoverRadius: 6,
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'bottom', align: 'start' },
+                            tooltip: { backgroundColor: 'rgba(30, 41, 59, 0.94)' }
+                        },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: {
+                                min: 0,
+                                beginAtZero: true,
+                                title: { display: true, text: 'Sessions' },
+                                ticks: {
+                                    callback: v => Math.round(v).toLocaleString(),  // ← remove decimals + add commas
+                                    stepSize: 1  // optional: force integer steps if needed
+                                }
+                            },
+                            y1: {
+                                position: 'right',
+                                min: 0,
+                                title: { display: true, text: 'Success Rate' },
+                                grid: { drawOnChartArea: false },
+                                ticks: {
+                                    callback: v => Math.round(v) + '%',  // success rate already integer-ish, but round anyway
+                                    stepSize: 10  // optional: nicer steps (0, 10, 20, ...)
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            renderNewUsersChart() {
+                if (this.newUsersChart) this.newUsersChart.destroy();
+
+                const canvas = this.$refs.newUsersChart;
+                if (!canvas || !this.newUsersData.labels?.length) return;
+
+                this.newUsersChart = new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels: this.newUsersData.labels,
+                        datasets: [{
+                            label: 'New Users',
+                            data: this.newUsersData.values,
+                            borderColor: '#6366f1',
+                            backgroundColor: (ctx) => {
+                                const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300)
+                                gradient.addColorStop(0, 'rgba(99, 102, 241, 0.35)')
+                                gradient.addColorStop(1, 'rgba(99, 102, 241, 0.02)')
+                                return gradient
+                            },
+                            borderWidth: 2.5,
+                            tension: 0,
+                            fill: true,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#6366f1',
+                            pointBorderWidth: 2,
+                            pointRadius: 3.5,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', align: 'start' } },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: v => Math.round(v).toLocaleString(),  // ← whole numbers + commas
+                                    stepSize: 1  // optional
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            renderReturnUsersChart() {
+                if (this.returnUsersChart) this.returnUsersChart.destroy();
+
+                const canvas = this.$refs.returnUsersChart;
+                if (!canvas || !this.returnUsersData.labels?.length) return;
+
+                this.returnUsersChart = new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                    labels: this.returnUsersData.labels,
+                    datasets: [{
+                        label: 'Return Users',
+                        data: this.returnUsersData.values,
+                        borderColor: '#6366f1',
+                        backgroundColor: (ctx) => {
+                            const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300)
+                            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.35)')
+                            gradient.addColorStop(1, 'rgba(99, 102, 241, 0.02)')
+                            return gradient
+                        },
+                        borderWidth: 2.5,
+                        tension: 0,
+                        fill: true,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#6366f1',
+                        pointBorderWidth: 2,
+                        pointRadius: 3.5,
+                        pointHoverRadius: 6
+                    }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', align: 'start' } },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: v => Math.round(v).toLocaleString(),
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            renderByNetworkChart() {
+                if (this.byNetworkChart) this.byNetworkChart.destroy();
+
+                const canvas = this.$refs.byNetworkChart;
+                if (!canvas || !this.byNetworkData.labels?.length) return;
+
+                this.byNetworkChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: this.byNetworkData.labels,
+                        datasets: [{
+                            label: 'Sessions',
+                            data: this.byNetworkData.values,
+                            backgroundColor: (ctx) => {
+                                const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
+                                gradient.addColorStop(0, 'rgba(99, 102, 241, 0.75)');
+                                gradient.addColorStop(1, 'rgba(99, 102, 241, 0.45)');
+                                return gradient;
+                            },
+                            borderColor: 'rgb(99, 102, 241)',
+                            borderWidth: 1,
+                            borderRadius: 5,
+                            barPercentage: 0.85
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'x',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'bottom', align: 'start' },
+                            tooltip: { backgroundColor: 'rgba(30, 41, 59, 0.94)' }
+                        },
+                        x: {
+                            beginAtZero: true,
+                            grid: { color: '#e2e8f0' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { display: false },
+                            ticks: {
+                                callback: v => Math.round(v).toLocaleString()   // ← no decimals + thousand separators
+                            }
+                        }
+                    }
+                });
+            },
+            renderByCountryChart() {
+                if (this.byCountryChart) this.byCountryChart.destroy();
+
+                const canvas = this.$refs.byCountryChart;
+                if (!canvas || !this.byCountryData.labels?.length) return;
+
+                this.byCountryChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: this.byCountryData.labels,
+                        datasets: [{
+                            label: 'Sessions',
+                            data: this.byCountryData.values,
+                            backgroundColor: (ctx) => {
+                                const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
+                                gradient.addColorStop(0, 'rgba(99, 102, 241, 0.75)');
+                                gradient.addColorStop(1, 'rgba(99, 102, 241, 0.45)');
+                                return gradient;
+                            },
+                            borderColor: 'rgb(99, 102, 241)',
+                            borderWidth: 1,
+                            borderRadius: 5,
+                            barPercentage: 0.85
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'x',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'bottom', align: 'start' },
+                            tooltip: { backgroundColor: 'rgba(30, 41, 59, 0.94)' }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: { color: '#e2e8f0' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { display: false },
+                                ticks: {
+                                    callback: v => Math.round(v).toLocaleString()   // ← no decimals + commas
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            renderByNetworkCountryChart() {
+                if (this.byNetworkCountryChart) this.byNetworkCountryChart.destroy();
+
+                const canvas = this.$refs.byNetworkCountryChart;
+                if (!canvas || !this.byNetworkCountryData.length) return;
+
+                // 1. Get all unique countries across all networks
+                const allCountries = [...new Set(
+                    this.byNetworkCountryData.flatMap(group =>
+                        group.countries.map(c => c.country)  // ← now full names
+                    )
+                )].sort();
+
+                // 2. Get all unique networks (for legend & colors)
+                const networks = this.byNetworkCountryData.map(g => g.network);
+
+                // 3. Build datasets: one dataset per network
+                const datasets = this.byNetworkCountryData.map((networkGroup, index) => {
+                    // For each network, create data array matching country order
+                    const data = allCountries.map(country => {
+                        const match = networkGroup.countries.find(c => c.country === country);
+                        return match ? match.sessions : 0;
+                    });
+
+                    return {
+                        label: networkGroup.network,
+                        data: data,
+                        backgroundColor: [
+                            'rgba(99, 102, 241, 0.85)',     // 1. Indigo family (classic primary)
+                            'rgba(139, 92, 246, 0.85)',     // 3. Violet family (purple accent)
+                            'rgba(59, 130, 246, 0.85)',     // 4. Sky blue family (bright cool blue)
+                            'rgba(16, 185, 129, 0.85)',     // 2. Emerald/teal family (fresh green)
+                            'rgba(6, 182, 212, 0.85)',      // 5. Cyan family (vibrant cyan)
+                            'rgba(71, 85, 105, 0.80)',      // 6. Deep slate/blue-gray (neutral cool tone)
+                        ][index % 6],
+                        borderColor: 'transparent',
+                        borderWidth: 0,
+                        borderRadius: 6,
+                        barPercentage: 0.8,
+                        categoryPercentage: 0.9
+                    };
+                });
+
+                this.byNetworkCountryChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: allCountries,  // ← countries on x-axis (BW, ZA, etc.)
+                        datasets               // ← one dataset per network
+                    },
+                    options: {
+                        indexAxis: 'x',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                align: 'start',
+                                labels: {
+                                    padding: 20,
+                                    font: { size: 13 }
+                                }
+                            },
+                            tooltip: { backgroundColor: 'rgba(30, 41, 59, 0.94)' }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                title: {
+                                    display: true,
+                                    text: 'Country',
+                                    padding: { top: 10 }
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Sessions',
+                                    padding: { bottom: 10 }
+                                },
+                                ticks: {
+                                    callback: v => Math.round(v).toLocaleString()   // ← no decimals + thousand separators
+                                },
+                                grid: { color: '#e2e8f0' }
+                            }
+                        }
+                    }
+                });
+            },
+            renderByDeviceChart() {
+                if (this.byDeviceChart) this.byDeviceChart.destroy();
+
+                const canvas = this.$refs.byDeviceChart;
+                if (!canvas || !this.byDeviceData.labels?.length) return;
+
+                this.byDeviceChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: this.byDeviceData.labels,
+                        datasets: [{
+                            label: 'Sessions',
+                            data: this.byDeviceData.values,
+                            backgroundColor: (ctx) => {
+                                const device = this.byDeviceData.labels[ctx.dataIndex]?.toLowerCase() || '';
+
+                                let startColor, endColor;
+
+                                if (device.includes('mobile')) {
+                                    // Emerald / teal-green for Mobile
+                                    startColor = 'rgba(16, 185, 129, 0.85)';   // emerald-500
+                                    endColor   = 'rgba(16, 185, 129, 0.45)';
+                                } else if (device.includes('simulator')) {
+                                    // Amber / yellow-orange for Simulator
+                                    startColor = 'rgba(245, 158, 11, 0.85)';   // amber-500
+                                    endColor   = 'rgba(245, 158, 11, 0.45)';
+                                } else {
+                                    // Fallback (e.g. unknown)
+                                    startColor = 'rgba(148, 163, 184, 0.85)';  // slate-400
+                                    endColor   = 'rgba(148, 163, 184, 0.45)';
+                                }
+
+                                const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
+                                gradient.addColorStop(0, startColor);
+                                gradient.addColorStop(1, endColor);
+                                return gradient;
+                            },
+                            borderColor: (ctx) => {
+                                const device = this.byDeviceData.labels[ctx.dataIndex]?.toLowerCase() || '';
+                                if (device.includes('mobile')) return 'rgb(16, 185, 129)';
+                                if (device.includes('simulator')) return 'rgb(245, 158, 11)';
+                                return 'rgb(148, 163, 184)';
+                            },
+                            borderWidth: 1,
+                            borderRadius: 5,
+                            barPercentage: 0.85
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'x',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'bottom', align: 'start' },
+                            tooltip: { backgroundColor: 'rgba(30, 41, 59, 0.94)' }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: { color: '#e2e8f0' }
+                            },
+                            y: {
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            },
+            getHeatmapCellStyle(value, maxValue) {
+                if (value === 0) return { backgroundColor: '#ffffff' };
+
+                const intensity = Math.min(value / maxValue, 1);
+                const alpha = 0.25 + intensity * 0.75;
+
+                // White-yellow → orange → deep red
+                const r = 255;
+                const g = Math.round(255 * (1 - intensity));
+                const b = Math.round(100 * (1 - intensity));
+
+                return {
+                    backgroundColor: `rgba(${r}, ${g}, ${b}, ${alpha})`,
+                    cursor: 'pointer'
+                };
+            },
+            renderFlagsStatusChart() {
+                if (this.flagsStatusChart) this.flagsStatusChart.destroy();
+
+                const canvas = this.$refs.flagsStatusChart;
+                if (!canvas || this.flagsStatusData.total == 0) return;
+
+                this.flagsStatusChart = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Open', 'Resolved'],
+                        datasets: [{
+                            data: [this.flagsStatusData.open, this.flagsStatusData.resolved],
+                            backgroundColor: [
+                                'rgba(239, 68, 68, 0.85)',   // red for Open (warning feel intentional)
+                                'rgba(16, 185, 129, 0.85)'   // emerald for Resolved
+                            ],
+                            borderColor: '#ffffff',
+                            borderWidth: 3,
+                            hoverOffset: 12
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                align: 'start',
+                                labels: {
+                                    padding: 20,
+                                    font: { size: 13 }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(30, 41, 59, 0.94)',
+                                callbacks: {
+                                    label: ctx => `${ctx.label}: ${ctx.raw} (${((ctx.raw / this.flagsStatusData.total) * 100).toFixed(1)}%)`
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+            renderFlagsPriorityChart() {
+                if (this.flagsPriorityChart) this.flagsPriorityChart.destroy();
+
+                const canvas = this.$refs.flagsPriorityChart;
+                if (!canvas || !this.flagsPriorityData.length) return;
+
+                // Map priority levels to colors (case-insensitive match)
+                const priorityColors = {
+                    'critical': { start: 'rgba(239, 68, 68, 0.90)', end: 'rgba(239, 68, 68, 0.50)' },   // red-500
+                    'high':     { start: 'rgba(249, 115, 22, 0.85)', end: 'rgba(249, 115, 22, 0.45)' },   // orange-500
+                    'medium':   { start: 'rgba(234, 179, 8, 0.85)', end: 'rgba(234, 179, 8, 0.45)' },    // yellow-500
+                    'low':      { start: 'rgba(34, 197, 94, 0.85)', end: 'rgba(34, 197, 94, 0.45)' },     // green-500
+                    'unknown':  { start: 'rgba(148, 163, 184, 0.85)', end: 'rgba(148, 163, 184, 0.45)' }  // slate-400 fallback
+                };
+
+                this.flagsPriorityChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: this.flagsPriorityData.map(item => item.priority),
+                        datasets: [{
+                            label: 'Open Flags',
+                            data: this.flagsPriorityData.map(item => item.count),
+                            backgroundColor: (ctx) => {
+                                const priority = (this.flagsPriorityData[ctx.dataIndex]?.priority || 'unknown').toLowerCase();
+                                const colors = priorityColors[priority] || priorityColors['unknown'];
+                                const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
+                                gradient.addColorStop(0, colors.start);
+                                gradient.addColorStop(1, colors.end);
+                                return gradient;
+                            },
+                            borderColor: (ctx) => {
+                                const priority = (this.flagsPriorityData[ctx.dataIndex]?.priority || 'unknown').toLowerCase();
+                                return priorityColors[priority]?.start.replace('0.85', '1') || 'rgb(148, 163, 184)';
+                            },
+                            borderWidth: 1,
+                            borderRadius: 5,
+                            barPercentage: 0.85
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { backgroundColor: 'rgba(30, 41, 59, 0.94)' }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: { color: '#e2e8f0' },
+                                ticks: { callback: v => v.toLocaleString() }
+                            },
+                            y: { grid: { display: false } }
+                        }
+                    }
+                });
+            },
+            renderFlagsCategoryChart() {
+                if (this.flagsCategoryChart) this.flagsCategoryChart.destroy();
+
+                const canvas = this.$refs.flagsCategoryChart;
+                if (!canvas || !this.flagsCategoryData.length) return;
+
+                this.flagsCategoryChart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: this.flagsCategoryData.map(item => item.category),
+                        datasets: [{
+                            label: 'Open Flags',
+                            data: this.flagsCategoryData.map(item => item.count),
+                            backgroundColor: (ctx) => {
+                                const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
+                                gradient.addColorStop(0, 'rgba(234, 179, 8, 0.85)');
+                                gradient.addColorStop(1, 'rgba(234, 179, 8, 0.45)');
+                                return gradient;
+                            },
+                            borderColor: 'rgb(234, 179, 8)',
+                            borderWidth: 1,
+                            borderRadius: 5,
+                            barPercentage: 0.85
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { backgroundColor: 'rgba(30, 41, 59, 0.94)' }
+                        },
+                        scales: {
+                            x: { beginAtZero: true, grid: { color: '#e2e8f0' } },
+                            y: { grid: { display: false } }
+                        }
+                    }
+                });
+            },
+            renderFailedSessionsChart() {
+                if (this.failedSessionsChart) this.failedSessionsChart.destroy();
+
+                const canvas = this.$refs.failedSessionsChart;
+                if (!canvas || !this.failedSessionsData.labels?.length) return;
+
+                this.failedSessionsChart = new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels: this.failedSessionsData.labels,
+                        datasets: [{
+                            label: 'Failed Sessions',
+                            data: this.failedSessionsData.values,
+                            borderColor: '#ef4444',  // red for failures
+                            backgroundColor: (ctx) => {
+                                const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
+                                gradient.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
+                                gradient.addColorStop(1, 'rgba(239, 68, 68, 0.02)');
+                                return gradient;
+                            },
+                            borderWidth: 2.5,
+                            tension: 0,
+                            fill: true,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#ef4444',
+                            pointBorderWidth: 2,
+                            pointRadius: 3.5,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', align: 'start' } },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: v => Math.round(v).toLocaleString(),
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+            },
         },
-        datalabels: {  // Optional: show % directly on chart (uncomment if wanted)
-          // display: true,
-          // color: '#ffffff',
-          // font: { weight: 'bold', size: 13 },
-          // formatter: (value, ctx) => {
-          //   const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-          //   return Math.round((value / total) * 100) + '%';
-          // }
-        }
-      }
+        mounted() {
+            this.loadAllData();
+        },
+        beforeUnmount() {
+            if (this.heatmapChart) this.heatmapChart.destroy();
+            if (this.byDeviceChart) this.byDeviceChart.destroy();
+            if (this.sessionsChart) this.sessionsChart.destroy();
+            if (this.newUsersChart) this.newUsersChart.destroy();
+            if (this.byCountryChart) this.byCountryChart.destroy();
+            if (this.byNetworkChart) this.byNetworkChart.destroy();
+            if (this.returnUsersChart) this.returnUsersChart.destroy();
+            if (this.flagsStatusChart) this.flagsStatusChart.destroy();
+            if (this.flagsPriorityChart) this.flagsPriorityChart.destroy();
+            if (this.flagsCategoryChart) this.flagsCategoryChart.destroy();
+            if (this.failedSessionsChart) this.failedSessionsChart.destroy();
+            if (this.byNetworkCountryChart) this.byNetworkCountryChart.destroy();
+        },
     }
-  });
-}
-
-}
-
-// ── Methods ──────────────────────────────────────────────────────────────
-const setQuickRange = (value) => {
-  currentRange.value = value
-  createCharts()
-}
-
-const applyCustomRange = () => {
-  if (customStart.value && customEnd.value) {
-    currentRange.value = 'custom'
-    showDateRangeModal.value = false
-    createCharts()
-  }
-}
-
-// ── Lifecycle ────────────────────────────────────────────────────────────
-onMounted(() => {
-  createCharts()
-})
-
-onUnmounted(() => {
-  destroyCharts()
-})
-
-// ── Local Components ─────────────────────────────────────────────────────
-const KpiCard = {
-  props: {
-    title: String,
-    value: [String, Number],
-    trend: String,
-    trendPositive: Boolean
-  },
-  template: `
-    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm relative overflow-hidden">
-      <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-50/70 to-transparent rounded-bl-full -mr-8 -mt-8"></div>
-      <p class="text-sm text-slate-500 font-medium mb-1">{{ title }}</p>
-      <p class="text-3xl font-bold text-slate-900">{{ value }}</p>
-      <div class="mt-4 flex items-center gap-2">
-        <span :class="trendPositive ? 'text-emerald-600' : 'text-rose-600'" class="text-sm font-medium">
-          {{ trend }}
-        </span>
-        <span class="text-xs text-slate-500">vs previous period</span>
-      </div>
-    </div>
-  `
-}
-
-const ChartCard = {
-  props: { title: String },
-  template: `
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="px-6 py-4 border-b border-slate-100">
-        <h3 class="text-lg font-semibold text-slate-900">{{ title }}</h3>
-      </div>
-      <div class="p-4">
-        <slot />
-        </div>
-    </div>
-  `
-}
 </script>

@@ -6,6 +6,9 @@ export const useNotificationStore = defineStore('notification', {
         notifications: []
     }),
     actions: {
+        showInfoNotification(message, duration = 3000) {
+            this.addNotification(message, 'info', duration);
+        },
         showSuccessNotification(message, duration = 3000) {
             this.addNotification(message, 'success', duration);
         },

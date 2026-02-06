@@ -2,7 +2,9 @@
 
 namespace App\Policies;
 
+use App\Models\App;
 use App\Models\User;
+use App\Models\UssdSession;
 use App\Models\UssdSessionStep;
 
 class UssdSessionStepPolicy extends BasePolicy
@@ -21,16 +23,27 @@ class UssdSessionStepPolicy extends BasePolicy
 
     /**
      * Determine whether the user can view any session steps.
+     *
+     * @param User $user
+     * @param App $app
+     * @param UssdSession $ussdSession
+     * @return bool
      */
-    public function viewAny(User $user): bool
+    public function viewAny(User $user, App $app, UssdSession $ussdSession): bool
     {
         return true;
     }
 
     /**
      * Determine whether the user can view the session step.
+     *
+     * @param User $user
+     * @param App $app
+     * @param UssdSession $ussdSession
+     * @param UssdSessionStep $ussdSessionStep
+     * @return bool
      */
-    public function view(User $user, UssdSessionStep $ussdSessionStep): bool
+    public function view(User $user, App $app, UssdSession $ussdSession, UssdSessionStep $ussdSessionStep): bool
     {
         return true;
     }

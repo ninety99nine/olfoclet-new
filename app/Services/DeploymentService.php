@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\Association;
 use Exception;
 use App\Models\App;
 use App\Models\Deployment;
@@ -15,28 +14,20 @@ class DeploymentService extends BaseService
     /**
      * Show deployments.
      *
+     * @param App $app
      * @param array $data
      * @return DeploymentResources|array
      */
-    public function showDeployments(array $data): DeploymentResources|array
+    public function showDeployments(App $app, array $data): DeploymentResources|array
     {
         /** @var User $user */
         $user = Auth::user();
 
-        $appId = $data['app_id'] ?? null;
         $country = $data['country'] ?? null;
         $network = $data['network'] ?? null;
         $active = isset($data['active']) ?? null;
-        $association = isset($data['association']) ? Association::tryFrom($data['association']) : null;
 
-        if ($association === Association::SUPER_ADMIN) {
-            $query = Deployment::query()->latest();
-        } else if (!empty($appId)) {
-            $query = Deployment::where('app_id', $appId);
-        } else {
-            $appIds = $user->apps()->pluck('apps.id');
-            $query = Deployment::whereIn('app_id', $appIds);
-        }
+        $query = Deployment::where('app_id', $app->id);
 
         if (!empty($country)) $query->where('country', $country);
         if (!empty($network)) $query->where('network', $network);
@@ -50,13 +41,17 @@ class DeploymentService extends BaseService
     /**
      * Create deployment.
      *
+     * @param App $app
      * @param array $data
      * @return array
      * @throws Exception
      */
-    public function createDeployment(array $data): array
+    public function createDeployment(App $app, array $data): array
     {
-        $deployment = Deployment::create($data);
+        $deployment = Deployment::create([
+            ...$data,
+            'app_id' => $app->id
+        ]);
 
         return $this->showCreatedResource($deployment);
     }
@@ -64,10 +59,11 @@ class DeploymentService extends BaseService
     /**
      * Show deployment.
      *
+     * @param App $app
      * @param Deployment $deployment
      * @return DeploymentResource
      */
-    public function showDeployment(Deployment $deployment): DeploymentResource
+    public function showDeployment(App $app, Deployment $deployment): DeploymentResource
     {
         return $this->showResource($deployment);
     }
@@ -75,11 +71,12 @@ class DeploymentService extends BaseService
     /**
      * Update deployment.
      *
+     * @param App $app
      * @param Deployment $deployment
      * @param array $data
      * @return array
      */
-    public function updateDeployment(Deployment $deployment, array $data): array
+    public function updateDeployment(App $app, Deployment $deployment, array $data): array
     {
         $deployment->update($data);
 
@@ -87,19 +84,20 @@ class DeploymentService extends BaseService
     }
 
     /**
-     * Delete multiple deployments.
+     * Delete deployments.
      *
+     * @param App $app
      * @param array $deploymentIds
      * @return array
      * @throws Exception
      */
-    public function deleteDeployments(array $deploymentIds): array
+    public function deleteDeployments(App $app, array $deploymentIds): array
     {
-        $deployments = Deployment::whereIn('id', $deploymentIds)->get();
+        $deployments = Deployment::where('app_id', $app->id)->whereIn('id', $deploymentIds)->get();
 
         if ($total = $deployments->count()) {
             foreach ($deployments as $deployment) {
-                $this->deleteDeployment($deployment);
+                $this->deleteDeployment($app, $deployment);
             }
 
             return [
@@ -113,11 +111,12 @@ class DeploymentService extends BaseService
     /**
      * Delete deployment.
      *
+     * @param App $app
      * @param Deployment $deployment
      * @return array
      * @throws Exception
      */
-    public function deleteDeployment(Deployment $deployment): array
+    public function deleteDeployment(App $app, Deployment $deployment): array
     {
         $deleted = $deployment->delete();
 

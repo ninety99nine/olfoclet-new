@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\UssdSessionStep;
 
+use App\Models\UssdSessionStep;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ShowUssdSessionStepRequest extends FormRequest
@@ -11,7 +12,7 @@ class ShowUssdSessionStepRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('view', $this->route('ussd_session_step'));
+        return $this->user()->can('view', [UssdSessionStep::class, $this->route('app'), $this->route('ussd_session'), $this->route('ussd_session_step')]);
     }
 
     /**

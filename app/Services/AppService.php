@@ -26,14 +26,9 @@ class AppService extends BaseService
     {
         /** @var User $user */
         $user = Auth::user();
-        $association = isset($data['association']) ? Association::tryFrom($data['association']) : null;
 
-        if ($association === Association::SUPER_ADMIN) {
-            $query = App::query()->latest();
-        } else {
-            $query = $user->apps();
-            if(!request()->has('_sort')) $query = $query->orderByPivot('last_seen_at', 'desc');
-        }
+        $query = $user->apps();
+        if(!request()->has('_sort')) $query = $query->orderByPivot('last_seen_at', 'desc');
 
         return $this->setQuery($query)->getOutput();
     }

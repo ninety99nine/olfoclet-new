@@ -31,8 +31,18 @@ class UssdSessionFlagResource extends BaseResource
             'created_at'          => $this->created_at->toDateTimeString(),
             'updated_at'          => $this->updated_at->toDateTimeString(),
 
-            'created_by' => UserResource::make($this->whenLoaded('createdBy')),
-            'resolved_by' => UserResource::make($this->whenLoaded('resolvedBy')),
+            'created_by' => $this->whenLoaded('createdBy', fn() => [
+                'id' => $this->createdBy->id,
+                'name' => $this->createdBy->name,
+                'first_name' => $this->createdBy->first_name
+            ]),
+
+            'resolved_by' => $this->whenLoaded('resolvedBy', fn() => [
+                'id' => $this->createdBy->id,
+                'name' => $this->createdBy->name,
+                'first_name' => $this->createdBy->first_name
+            ]),
+
             'session' => UssdSessionResource::make($this->whenLoaded('session')),
         ];
     }

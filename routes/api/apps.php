@@ -3,8 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AppController;
 
-Route::middleware(['auth:sanctum'])
-    ->prefix('apps')
+Route::prefix('apps')
+    ->middleware(['auth:sanctum'])
     ->controller(AppController::class)
     ->group(function () {
         Route::get('/', 'showApps')->name('show.apps');

@@ -12,7 +12,7 @@ class DeleteUssdAccountsRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('deleteAny', UssdAccount::class);
+        return $this->user()->can('deleteAny', [UssdAccount::class, $this->route('app')]);
     }
 
     /**

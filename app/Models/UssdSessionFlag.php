@@ -37,6 +37,22 @@ class UssdSessionFlag extends Model
     ];
 
     /**
+     * Scope a query by search term (msisdn or session_id).
+     *
+     * @param Builder $query
+     * @param string $searchTerm
+     * @return void
+     */
+    #[Scope]
+    protected function search(Builder $query, string $searchTerm): void
+    {
+        $query->where(function ($q) use ($searchTerm) {
+            $q->where('comment', 'like', '%' . $searchTerm . '%')
+              ->orWhere('resolution_comment', 'like', '%' . $searchTerm . '%');
+        });
+    }
+
+    /**
      * Scope a query to only open flags.
      *
      * @param Builder $query

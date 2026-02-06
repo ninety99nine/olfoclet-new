@@ -10,6 +10,8 @@ use App\Models\UssdAccount;
 use App\Models\UssdSession;
 use App\Models\UssdSessionFlag;
 use App\Models\UssdSessionStep;
+use App\Models\BusinessKpi;
+use App\Models\BusinessKpiRecord;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -92,6 +94,21 @@ class AppServiceProvider extends ServiceProvider
         Route::bind('ussd_session_flag', function ($value) {
             $allowedRoutes = ['show.ussd.session.flag'];
             return $this->applyEagerLoading(UssdSessionFlag::query(), $allowedRoutes)->findOrFail($value);
+        });
+
+        // Bind BusinessKpi model (scoped to app from route)
+        Route::bind('business_kpi', function ($value) {
+            $app = Route::current()->parameter('app');
+            return BusinessKpi::where('app_id', $app->id)->where('id', $value)->firstOrFail();
+        });
+
+        // Bind BusinessKpiRecord model (scoped to business_kpi when in nested route, else by id)
+        Route::bind('business_kpi_record', function ($value) {
+            $businessKpi = Route::current()->parameter('business_kpi');
+            if ($businessKpi) {
+                return BusinessKpiRecord::where('business_kpi_id', $businessKpi->id)->where('id', $value)->firstOrFail();
+            }
+            return BusinessKpiRecord::findOrFail($value);
         });
     }
 

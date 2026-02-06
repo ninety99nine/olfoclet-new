@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Deployment;
 
+use App\Models\Deployment;
 use Illuminate\Foundation\Http\FormRequest;
 
 class DeleteDeploymentRequest extends FormRequest
@@ -11,7 +12,7 @@ class DeleteDeploymentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('delete', $this->route('deployment'));
+        return $this->user()->can('delete', [Deployment::class, $this->route('app'), $this->route('deployment')]);
     }
 
     /**

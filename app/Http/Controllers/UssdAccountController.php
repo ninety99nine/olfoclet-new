@@ -15,6 +15,7 @@ use App\Http\Requests\UssdAccount\UnblockUssdAccountRequest;
 use App\Http\Requests\UssdAccount\DeleteUssdAccountsRequest;
 use App\Http\Requests\UssdAccount\ShowUssdAccountSummaryRequest;
 use App\Http\Requests\UssdAccount\ShowUssdAccountsSummaryRequest;
+use App\Models\App;
 
 class UssdAccountController extends Controller
 {
@@ -37,104 +38,113 @@ class UssdAccountController extends Controller
      * Show ussd accounts.
      *
      * @param ShowUssdAccountsRequest $request
+     * @param App $app
      * @return UssdAccountResources|array
      */
-    public function showUssdAccounts(ShowUssdAccountsRequest $request): UssdAccountResources|array
+    public function showUssdAccounts(ShowUssdAccountsRequest $request, App $app): UssdAccountResources|array
     {
-        return $this->service->showUssdAccounts($request->validated());
+        return $this->service->showUssdAccounts($app, $request->validated());
     }
 
     /**
      * Show ussd accounts summary.
      *
      * @param ShowUssdAccountsSummaryRequest $request
+     * @param App $app
      * @return array
      */
-    public function showUssdAccountsSummary(ShowUssdAccountsSummaryRequest $request): array
+    public function showUssdAccountsSummary(ShowUssdAccountsSummaryRequest $request, App $app): array
     {
-        return $this->service->showUssdAccountsSummary($request->validated());
+        return $this->service->showUssdAccountsSummary($app, $request->validated());
     }
 
     /**
      * Block ussd accounts.
      *
      * @param BlockUssdAccountsRequest $request
+     * @param App $app
      * @return array
      */
-    public function blockUssdAccounts(BlockUssdAccountsRequest $request): array
+    public function blockUssdAccounts(BlockUssdAccountsRequest $request, App $app): array
     {
         $accountIds = $request->input('ussd_account_ids', []);
-        return $this->service->blockUssdAccounts($accountIds);
+        return $this->service->blockUssdAccounts($app, $accountIds);
     }
 
     /**
      * Delete ussd accounts.
      *
      * @param DeleteUssdAccountsRequest $request
+     * @param App $app
      * @return array
      */
-    public function deleteUssdAccounts(DeleteUssdAccountsRequest $request): array
+    public function deleteUssdAccounts(DeleteUssdAccountsRequest $request, App $app): array
     {
         $accountIds = $request->input('ussd_account_ids', []);
-        return $this->service->deleteUssdAccounts($accountIds);
+        return $this->service->deleteUssdAccounts($app, $accountIds);
     }
 
     /**
      * Show ussd account.
      *
      * @param ShowUssdAccountRequest $request
+     * @param App $app
      * @param UssdAccount $ussd_account
      * @return UssdAccountResource
      */
-    public function showUssdAccount(ShowUssdAccountRequest $request, UssdAccount $ussd_account): UssdAccountResource
+    public function showUssdAccount(ShowUssdAccountRequest $request, App $app, UssdAccount $ussd_account): UssdAccountResource
     {
-        return $this->service->showUssdAccount($ussd_account);
+        return $this->service->showUssdAccount($app, $ussd_account);
     }
 
     /**
      * Block ussd account.
      *
      * @param BlockUssdAccountRequest $request
+     * @param App $app
      * @param UssdAccount $ussd_account
      * @return array
      */
-    public function blockUssdAccount(BlockUssdAccountRequest $request, UssdAccount $ussd_account): array
+    public function blockUssdAccount(BlockUssdAccountRequest $request, App $app, UssdAccount $ussd_account): array
     {
-        return $this->service->blockUssdAccount($ussd_account);
+        return $this->service->blockUssdAccount($app, $ussd_account);
     }
 
     /**
      * Unblock ussd account.
      *
      * @param UnblockUssdAccountRequest $request
+     * @param App $app
      * @param UssdAccount $ussd_account
      * @return array
      */
-    public function unblockUssdAccount(UnblockUssdAccountRequest $request, UssdAccount $ussd_account): array
+    public function unblockUssdAccount(UnblockUssdAccountRequest $request, App $app, UssdAccount $ussd_account): array
     {
-        return $this->service->unblockUssdAccount($ussd_account);
+        return $this->service->unblockUssdAccount($app, $ussd_account);
     }
 
     /**
      * Delete ussd account.
      *
      * @param DeleteUssdAccountRequest $request
+     * @param App $app
      * @param UssdAccount $ussd_account
      * @return array
      */
-    public function deleteUssdAccount(DeleteUssdAccountRequest $request, UssdAccount $ussd_account): array
+    public function deleteUssdAccount(DeleteUssdAccountRequest $request, App $app, UssdAccount $ussd_account): array
     {
-        return $this->service->deleteUssdAccount($ussd_account);
+        return $this->service->deleteUssdAccount($app, $ussd_account);
     }
 
     /**
      * Show ussd account summary.
      *
      * @param ShowUssdAccountSummaryRequest $request
+     * @param App $app
      * @return array
      */
-    public function showUssdAccountSummary(ShowUssdAccountSummaryRequest $request, UssdAccount $ussd_account): array
+    public function showUssdAccountSummary(ShowUssdAccountSummaryRequest $request, App $app, UssdAccount $ussd_account): array
     {
-        return $this->service->showUssdAccountSummary($ussd_account);
+        return $this->service->showUssdAccountSummary($app, $ussd_account);
     }
 }

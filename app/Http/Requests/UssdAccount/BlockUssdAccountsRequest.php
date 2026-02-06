@@ -12,7 +12,7 @@ class BlockUssdAccountsRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('blockAny', UssdAccount::class);
+        return $this->user()->can('blockAny', [UssdAccount::class, $this->route('app')]);
     }
 
     /**

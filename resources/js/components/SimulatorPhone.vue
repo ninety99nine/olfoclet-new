@@ -43,9 +43,9 @@
                 <div class="absolute top-0 w-full h-6 bg-slate-900/10 z-10 flex justify-between items-center px-6">
                     <span class="text-[9px] font-bold text-slate-500">9:41</span>
                     <div class="flex gap-1">
-                        <div class="w-2.5 h-2.5 bg-slate-400 rounded-full opacity-50"></div>
-                        <div class="w-2.5 h-2.5 bg-slate-400 rounded-full opacity-50"></div>
-                        <div class="w-2.5 h-2.5 bg-slate-800 rounded-full"></div>
+                        <div class="w-2.5 h-2.5 bg-slate-600/20 rounded-full opacity-50"></div>
+                        <div class="w-2.5 h-2.5 bg-slate-600/30 rounded-full opacity-50"></div>
+                        <div class="w-2.5 h-2.5 bg-slate-600/40 rounded-full"></div>
                     </div>
                 </div>
 
@@ -188,13 +188,13 @@
                 <TransitionGroup name="list">
                     <div v-for="(log, idx) in history" :key="log.timestamp.getTime()" class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm mb-3">
                         <div class="flex justify-between items-start mb-2">
-                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase">
-                                {{ log.input ? 'Reply' : 'Start' }}
+                            <span v-if="!log.input || log.type === 'stop'" class="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase">
+                                {{ !log.input ? 'Start' : 'Stop' }}
                             </span>
-                            <span class="text-[9px] text-slate-400 font-medium">{{ formatLogTime(log.timestamp) }}</span>
+                            <span class="text-[9px] text-slate-400 font-medium ml-auto">{{ formatLogTime(log.timestamp) }}</span>
                         </div>
-                        <p v-if="log.input" class="text-xs font-mono text-indigo-600 mb-2 font-bold">> {{ log.input }}</p>
-                        <p class="text-[11px] text-slate-600 leading-relaxed font-mono italic">"{{ log.response }}"</p>
+                        <p class="text-[11px] text-slate-600 leading-relaxed font-mono">{{ log.response }}</p>
+                        <p v-if="log.input" class="text-[11px] font-mono text-indigo-600 mt-2 font-bold">> {{ log.input }}</p>
                     </div>
                 </TransitionGroup>
             </div>
@@ -358,7 +358,7 @@ export default {
                 this.awaitingInput = data.type === 'continue';
 
                 const logEntry = { input: text, response: data.message, type: data.type, timestamp: new Date() };
-                this.history.unshift(logEntry);
+                this.history.push(logEntry);
                 this.$emit('interaction', logEntry);
 
                 this.focusInput();

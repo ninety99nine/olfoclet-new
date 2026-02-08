@@ -7,7 +7,7 @@
 
                 <div
                     v-if="step.type == 'decision_point'"
-                    :class="['p-1.5 rounded-lg shrink-0', step.type == 'interactive_screen' ? 'bg-indigo-100 text-indigo-600 ' : 'bg-amber-100 text-amber-600 ']">
+                    :class="['p-1.5 rounded-lg shrink-0', step.type == 'interactive_screen' ? 'bg-indigo-100 text-indigo-600 ' : 'bg-orange-100 text-orange-600 ']">
                     <component :is="step.type == 'interactive_screen' ? Smartphone : GitBranch" size="14" />
                 </div>
 

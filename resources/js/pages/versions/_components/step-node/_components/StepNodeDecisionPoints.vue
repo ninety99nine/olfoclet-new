@@ -3,14 +3,24 @@
 
         <div class="space-y-2 mb-4">
             <div
+                v-for="(rule, index) in (step.rules || [])"
                 :key="index"
                 @click.stop="openEditor"
-                v-for="(rule, index) in (step.rules || [])"
-                class="relative flex items-center justify-between px-3 py-2.5 bg-white border border-slate-200 rounded-lg group/rule hover:border-amber-300 transition-all cursor-pointer">
+                :class="[
+                    'relative flex items-center justify-between px-3 py-2.5 rounded-lg group/rule transition-all duration-300 cursor-pointer border',
+                    // HIGHLIGHT LOGIC: Compare rule label with simulator state
+                    (matchedLabel === (rule.label || `Rule ${index + 1}`))
+                        ? 'bg-orange-50 border-orange-200'
+                        : 'bg-white border-slate-200 hover:bg-slate-50'
+                ]">
 
                 <div class="flex items-center min-w-0 flex-1 pr-6 py-1">
                     <div class="flex flex-col min-w-0">
-                        <span class="text-[10px] font-black text-amber-600 tracking-wider mb-0.5">
+                        <span
+                            :class="[
+                                'text-[10px] font-black tracking-wider mb-0.5',
+                                (matchedLabel === (rule.label || `Rule ${index + 1}`)) ? 'text-orange-700' : 'text-orange-600'
+                            ]">
                             {{ rule.label || `RULE #${index + 1}` }}
                         </span>
 
@@ -37,11 +47,20 @@
 
             <div
                 @click.stop="openEditor"
-                class="relative flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg group/else hover:border-slate-300 transition-colors cursor-pointer">
-                <div
-                    class="flex items-center gap-2 min-w-0">
-                    <span class="shrink-0 text-[10px] font-black text-slate-500 uppercase tracking-wider">ELSE</span>
+                :class="[
+                    'relative flex items-center justify-between px-3 py-2 rounded-lg group/else transition-colors cursor-pointer border',
+                    // HIGHLIGHT LOGIC: Check if matched label is 'Else'
+                    matchedLabel === 'Else'
+                        ? 'bg-slate-100 border-slate-500 shadow-md ring-2 ring-slate-200 z-10'
+                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                ]">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span :class="['shrink-0 text-[10px] font-black uppercase tracking-wider', matchedLabel === 'Else' ? 'text-slate-700' : 'text-slate-500']">ELSE</span>
                     <span class="text-xs text-slate-400 italic font-medium truncate text-right">Fallback path</span>
+                </div>
+
+                <div v-if="matchedLabel === 'Else'" class="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div class="h-2 w-2 rounded-full bg-slate-400 animate-pulse"></div>
                 </div>
 
                 <Handle
@@ -87,6 +106,10 @@ export default {
     computed: {
         step() {
             return this.versionState.builder?.steps[this.id] || {};
+        },
+        // Retrieves the matched rule label for this specific step from the Simulator Store
+        matchedLabel() {
+            return this.versionState.simulatorPathLogic[this.id];
         }
     },
     methods: {
@@ -117,26 +140,24 @@ export default {
 </script>
 
 <style scoped>
-/* Explicitly position handles on the right edge of their relative parent (the row).
-   This fixes the "edges coming from underneath" issue.
-*/
+/* Explicitly position handles on the right edge of their relative parent (the row). */
 :deep(.vue-flow__handle.decision-handle) {
     width: 10px;
     height: 10px;
-    background-color: #f59e0b; /* Amber-500 */
+    background-color: #f97316; /* Orange-500 */
     border: 2px solid white;
     border-radius: 50%;
     position: absolute;
     right: -5px !important; /* Push slightly outside the box */
     top: 50% !important;
     transform: translateY(-50%) !important;
-    z-index: 10;
+    z-index: 20; /* Increased Z-index to sit above the active border */
     transition: transform 0.2s;
 }
 
 :deep(.vue-flow__handle.decision-handle:hover) {
     transform: translateY(-50%) scale(1.3) !important;
-    background-color: #d97706; /* Amber-600 */
+    background-color: #ea580c; /* Orange-600 */
 }
 
 /* Different color for the Else/Default handle to distinguish it */

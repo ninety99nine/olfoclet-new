@@ -65,6 +65,12 @@ export const useVersionStore = defineStore('version', {
         currentFeatureId: null,
         initialStepHistory: [],
 
+        simulatorPathNodes: [],
+        simulatorPathEdges: [],
+        simulatorPathLogic: {},
+        simulatorStepResults: {},
+        simulatorTerminalStepId: null,
+
         featuresModal: null,
         stepEditModal: null,
         eventPickerModal: null,
@@ -246,6 +252,12 @@ export const useVersionStore = defineStore('version', {
             this.vueFlowInstance = null;
             this.currentFeatureId = null;
             this.initialStepHistory = [];
+
+            this.simulatorPathNodes = [];
+            this.simulatorPathEdges = [];
+            this.simulatorPathLogic = {};
+            this.simulatorStepResults = {};
+            this.simulatorTerminalStepId = null;
 
             this.featuresModal = null;
             this.stepEditModal = null;
@@ -1085,6 +1097,103 @@ export const useVersionStore = defineStore('version', {
                     f.options[edge.data.option_index].next_step_id = null;
                 }
             }
-        }
+        },
+
+        /**
+         * Recursively finds the logical path between two nodes, including
+         * intermediate decision points and edges.
+         */
+        findLogicalPath(currentId, targetId, visitedNodes = [], visitedEdges = [], visitedLogic = {}) {
+            if (currentId === targetId) return { nodes: visitedNodes, edges: visitedEdges, logic: visitedLogic };
+
+            if (visitedNodes.length > 20) return null;
+
+            const outgoingEdges = this.edges.filter(e => e.source === currentId);
+
+            for (const edge of outgoingEdges) {
+                if (visitedEdges.includes(edge.id)) continue;
+
+                // If the edge has a label (like "RULE #1" or "Else"), track it
+                const newLogic = { ...visitedLogic };
+                if (edge.label) {
+                    newLogic[currentId] = edge.label;
+                }
+
+                const result = this.findLogicalPath(
+                    edge.target,
+                    targetId,
+                    [...visitedNodes, edge.target],
+                    [...visitedEdges, edge.id],
+                    newLogic
+                );
+
+                if (result) return result;
+            }
+            return null;
+        },
+        addToSimulatorPath(stepId, isStop, message = null, logicLabel = null, sourceStepId = null) {
+            // 1. If this is the start of a session (no nodes in path yet)
+            if (!this.simulatorPathNodes.length) {
+                this.simulatorPathNodes.push(stepId);
+                if (message) this.simulatorStepResults[stepId] = message;
+                if (isStop) this.simulatorTerminalStepId = stepId;
+                return;
+            }
+
+            // 2. Store the user's reply/logic on the SOURCE step (where they were)
+            if (sourceStepId && logicLabel) {
+                this.simulatorPathLogic[sourceStepId] = logicLabel;
+            }
+
+            const lastStepId = this.simulatorPathNodes[this.simulatorPathNodes.length - 1];
+
+            // Ignore if the step hasn't changed
+            if (lastStepId === stepId) return;
+
+            // 3. Trace the path to bridge gaps (handles intermediate Decision Points)
+            const trace = this.findLogicalPath(lastStepId, stepId);
+
+            if (trace) {
+                // A. Push Nodes
+                trace.nodes.forEach(id => {
+                    if (!this.simulatorPathNodes.includes(id)) this.simulatorPathNodes.push(id);
+                });
+
+                // B. Push Edges
+                trace.edges.forEach(id => {
+                    if (!this.simulatorPathEdges.includes(id)) this.simulatorPathEdges.push(id);
+                });
+
+                // C. APPLY MATCHED RULES (This was missing)
+                if (trace.logic) {
+                    Object.entries(trace.logic).forEach(([nodeId, label]) => {
+                        this.simulatorPathLogic[nodeId] = label;
+                    });
+                }
+
+            } else {
+                // Fallback
+                if (!this.simulatorPathNodes.includes(stepId)) this.simulatorPathNodes.push(stepId);
+            }
+
+            // 4. Store the USSD message for the NEW current step
+            if (message) this.simulatorStepResults[stepId] = message;
+
+            // 5. Fallback for immediate logic assignment
+            if (logicLabel && !sourceStepId) {
+                this.simulatorPathLogic[stepId] = logicLabel;
+            }
+
+            if (isStop) {
+                this.simulatorTerminalStepId = stepId;
+            }
+        },
+        clearSimulatorPath() {
+            this.simulatorPathNodes = [];
+            this.simulatorPathEdges = [];
+            this.simulatorPathLogic = {};
+            this.simulatorStepResults = {};
+            this.simulatorTerminalStepId = null;
+        },
     },
 });

@@ -241,7 +241,8 @@ class UssdService
         return [
             'message'    => $message,
             'type'       => $responseType,
-            'session_id' => $payload['session_id']
+            'session_id' => $payload['session_id'],
+            'current_step_id' => $currentStepId // Added for simulator highlighting
         ];
     }
 

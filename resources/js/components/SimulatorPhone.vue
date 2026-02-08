@@ -186,15 +186,86 @@
                 </div>
 
                 <TransitionGroup name="list">
-                    <div v-for="(log, idx) in history" :key="log.timestamp.getTime()" class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm mb-3">
-                        <div class="flex justify-between items-start mb-2">
-                            <span v-if="!log.input || log.type === 'stop'" class="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase">
-                                {{ !log.input ? 'Start' : 'Stop' }}
-                            </span>
-                            <span class="text-[9px] text-slate-400 font-medium ml-auto">{{ formatLogTime(log.timestamp) }}</span>
+                    <div
+                        v-for="(log, idx) in history"
+                        :key="log.timestamp.getTime()"
+                        class="relative group bg-white border border-slate-200 rounded-xl shadow-sm mb-3 hover:border-indigo-300 hover:shadow-md transition-all duration-200 overflow-hidden"
+                    >
+                        <div class="p-3">
+                            <div class="flex justify-between items-start mb-2">
+                                <span v-if="idx === 0 || log.type === 'stop'" class="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase">
+                                    {{ idx === 0 ? 'Start' : 'Stop' }}
+                                </span>
+                                <span class="text-[9px] text-slate-400 font-medium ml-auto">{{ formatLogTime(log.timestamp) }}</span>
+                            </div>
+
+                            <p class="text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap">{{ log.response }}</p>
+                            <p v-if="log.input" class="text-[11px] text-indigo-600 mt-2 font-bold font-mono">
+                                <span class="text-slate-400 mr-2">↳</span>
+                                <span>{{ log.input }}</span>
+                            </p>
                         </div>
-                        <p class="text-[11px] text-slate-600 leading-relaxed font-mono">{{ log.response }}</p>
-                        <p v-if="log.input" class="text-[11px] font-mono text-indigo-600 mt-2 font-bold">> {{ log.input }}</p>
+
+                        <vue-slide-up-down :active="expandedLogIndex === idx" :duration="300">
+                            <div class="bg-slate-50 border-t border-slate-100 p-2 relative">
+
+                                <button
+                                    @click="expandedLogIndex = null"
+                                    class="absolute top-1 right-1 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors cursor-pointer z-10"
+                                    title="Close Editor"
+                                >
+                                    <XCircle size="14" />
+                                </button>
+
+                                <div class="grid grid-cols-2 gap-2 pr-6">
+                                    <template v-for="feat in getStepFeatures(log.stepId)" :key="feat.id">
+                                        <button
+                                            @click="openFeatureEditor(log.stepId, feat)"
+                                            class="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded-lg hover:border-indigo-400 hover:shadow-sm hover:text-indigo-600 text-slate-600 transition-all text-left cursor-pointer"
+                                        >
+                                            <component :is="getFeatureIcon(feat.type)" size="12" />
+                                            <div class="flex flex-col">
+                                                <span class="text-[9px] font-bold uppercase tracking-wide">{{ getFeatureLabel(feat.type) }}</span>
+                                                <span class="text-[8px] opacity-60 truncate max-w-[80px]">Edit Settings</span>
+                                            </div>
+                                        </button>
+                                    </template>
+
+                                    <button
+                                        v-if="isDecisionPoint(log.stepId)"
+                                        @click="openDecisionEditor(log.stepId)"
+                                        class="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg hover:border-amber-400 hover:shadow-sm hover:text-amber-700 text-amber-600 transition-all text-left cursor-pointer col-span-2"
+                                    >
+                                        <GitBranch size="12" />
+                                        <div class="flex flex-col">
+                                            <span class="text-[9px] font-bold uppercase tracking-wide">Logic Gate</span>
+                                            <span class="text-[8px] opacity-60">Edit Rules</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                        </vue-slide-up-down>
+
+                        <div v-if="log.stepId && expandedLogIndex !== idx" class="absolute inset-0 bg-white/95 rounded-xl backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center gap-2">
+                            <button
+                                @click="locateStep(log.stepId)"
+                                class="flex flex-col items-center justify-center gap-1 w-16 h-16 rounded-lg hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer"
+                            >
+                            <MapPin size="14" />
+                                <span class="text-[9px] font-bold uppercase tracking-wider">Locate</span>
+                            </button>
+
+                            <div class="w-px h-8 bg-slate-200"></div>
+
+                            <button
+                                @click="toggleEditMenu(idx, log.stepId)"
+                                class="flex flex-col items-center justify-center gap-1 w-16 h-16 rounded-lg hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer"
+                            >
+                            <Edit3 size="14" />
+                                <span class="text-[9px] font-bold uppercase tracking-wider">Edit</span>
+                            </button>
+                        </div>
+
                     </div>
                 </TransitionGroup>
             </div>
@@ -213,11 +284,20 @@
 <script>
 import axios from 'axios';
 import Logo from '@Partials/Logo.vue';
-import { Smartphone, Activity, Phone, Zap, Edit3, Check, PlusCircle, XCircle, RotateCcw, Square } from 'lucide-vue-next';
+import VueSlideUpDown from 'vue-slide-up-down';
+import {
+    Smartphone, Activity, Phone, Zap, Edit3, Check, PlusCircle,
+    XCircle, RotateCcw, Square, MapPin, FileText, List, Terminal, GitBranch, Cpu
+} from 'lucide-vue-next';
 
 export default {
     name: 'SimulatorPhone',
-    components: { Smartphone, Activity, Phone, Zap, Edit3, Check, Logo, PlusCircle, XCircle, RotateCcw, Square },
+    components: {
+        Smartphone, Activity, Phone, Zap, Edit3, Check, Logo,
+        PlusCircle, XCircle, RotateCcw, Square, MapPin,
+        FileText, List, Terminal, GitBranch, Cpu,
+        VueSlideUpDown
+    },
     inject: ['appState', 'versionState'],
     props: {
         versionId: { type: String, required: true },
@@ -237,6 +317,7 @@ export default {
             awaitingInput: false,
             showEndHint: false,
             history: [],
+            expandedLogIndex: null, // Tracks which log card is open for editing
             profiles: [
                 { label: 'Seller', number: '26771234567' },
                 { label: 'Buyer', number: '26772999999' }
@@ -266,6 +347,78 @@ export default {
         }
     },
     methods: {
+        locateStep(stepId) {
+            if (!stepId || !this.versionState.vueFlowInstance) return;
+
+            this.versionState.vueFlowInstance.fitView({
+                nodes: [stepId],
+                duration: 800,
+                padding: 0.5
+            });
+            this.versionState.setCurrentStepId(stepId);
+        },
+        toggleEditMenu(index, stepId) {
+            if (this.expandedLogIndex === index) {
+                this.expandedLogIndex = null;
+            } else {
+                this.expandedLogIndex = index;
+                // Auto-locate the step when opening the edit menu
+                if (stepId) {
+                    this.locateStep(stepId);
+                }
+            }
+        },
+        getStepFeatures(stepId) {
+            const step = this.versionState.builder.steps[stepId];
+            if (!step || !step.feature_ids) return [];
+            return step.feature_ids
+                .map(fid => ({ ...this.versionState.builder.features[fid], id: fid }))
+                .filter(f => f.type); // Ensure validity
+        },
+        isDecisionPoint(stepId) {
+            const step = this.versionState.builder.steps[stepId];
+            return step && step.type === 'decision_point';
+        },
+        getFeatureIcon(type) {
+            const map = {
+                'basic content': 'FileText',
+                'code content': 'Cpu',
+                'select': 'List',
+                'input': 'Terminal'
+            };
+            return map[type] || 'Edit3';
+        },
+        getFeatureLabel(type) {
+             const map = {
+                'basic content': 'Message',
+                'code content': 'Code',
+                'select': 'Menu',
+                'input': 'Input'
+            };
+            return map[type] || 'Feature';
+        },
+        openFeatureEditor(stepId, feature) {
+            this.versionState.setCurrentStepId(stepId);
+            this.versionState.setCurrentFeatureId(feature.id);
+
+            // Directly trigger the specific modal
+            if (feature.type === 'basic content') {
+                this.versionState.basicContentEditorModal?.showModal();
+            } else if (feature.type === 'code content') {
+                this.versionState.codeContentEditorModal?.showModal();
+            } else if (feature.type === 'select') {
+                this.versionState.selectFeatureModal?.showModal();
+            } else if (feature.type === 'input') {
+                this.versionState.inputFeatureModal?.showModal();
+            } else {
+                // Fallback
+                this.versionState.featuresModal?.showModal();
+            }
+        },
+        openDecisionEditor(stepId) {
+            this.versionState.setCurrentStepId(stepId);
+            this.versionState.decisionPointModal?.showModal();
+        },
         focusInput() {
             if (this.awaitingInput) {
                 this.$nextTick(() => {
@@ -325,6 +478,8 @@ export default {
             this.sessionId = null;
             this.history = [];
             this.userInput = '';
+            // Clear previous path visuals
+            this.versionState.clearSimulatorPath();
             await this.sendRequest('');
         },
         async sendResponse() {
@@ -334,22 +489,28 @@ export default {
         },
         async sendRequest(text) {
             this.loading = true;
-            const payload = { version_id: this.versionId, phone_number: this.activePhone, text: text };
+
+            // Capture the ID of the step the user is looking at BEFORE we send the request.
+            // This is crucial for mapping the "Reply" back to the correct node.
+            const sourceStepId = (this.sessionId && this.versionState.simulatorPathNodes.length)
+                ? this.versionState.simulatorPathNodes[this.versionState.simulatorPathNodes.length - 1]
+                : null;
+
+            const payload = {
+                version_id: this.versionId,
+                phone_number: this.activePhone,
+                text: text
+            };
+
             if (this.sessionId) payload.session_id = this.sessionId;
 
             try {
                 const response = await axios.post('/api/ussd/simulate', payload);
                 const data = response.data;
 
-                // INSTANT TRIGGER: Check for "stop" as returned by your API
                 if (data.type === 'stop') {
                     this.triggerEndHint();
-
-                    // Automatically end the visual session after a brief delay
-                    // so the user sees the final "stop" message but doesn't have to click
-                    setTimeout(() => {
-                        this.endSession();
-                    }, 4000);
+                    setTimeout(() => { this.endSession(); }, 4000);
                 }
 
                 this.sessionId = data.session_id;
@@ -357,7 +518,39 @@ export default {
                 this.currentMessageId++;
                 this.awaitingInput = data.type === 'continue';
 
-                const logEntry = { input: text, response: data.message, type: data.type, timestamp: new Date() };
+                // Update the visual path in the canvas
+                // We pass 'text' as the logic label and 'sourceStepId' as the origin
+                this.versionState.addToSimulatorPath(
+                    data.current_step_id,
+                    data.type === 'stop',
+                    data.message,
+                    text,         // The logic/reply label
+                    sourceStepId  // The node that the reply belongs to
+                );
+
+                // --- RE-ARRANGE CANVAS NODES ---
+                // We wait 400ms to allow the 'slide-up' transition (approx 300ms)
+                // to complete so the auto-layout can read the correct expanded height.
+                setTimeout(() => {
+                    this.versionState.autoLayoutNodes({
+                        zoom: false,      // Prevent jarring camera movements
+                        autoLayout: true  // Perform the smart stacking logic
+                    });
+                }, 400);
+
+                // HISTORY FIX: Attach user input to the PREVIOUS card (the screen where it was typed)
+                if (this.history.length > 0) {
+                     this.history[this.history.length - 1].input = text;
+                }
+
+                const logEntry = {
+                    input: null, // New card starts with no input
+                    response: data.message,
+                    type: data.type,
+                    timestamp: new Date(),
+                    stepId: data.current_step_id
+                };
+
                 this.history.push(logEntry);
                 this.$emit('interaction', logEntry);
 
@@ -371,7 +564,6 @@ export default {
             }
         },
         endSession() {
-            // Only show hint if we are manually ending an active session
             if (this.sessionId && !this.showEndHint) {
                 this.triggerEndHint();
             }
@@ -379,6 +571,7 @@ export default {
             this.currentMessage = '';
             this.userInput = '';
             this.awaitingInput = false;
+            // Note: We don't clear the path here so users can see the final state
         },
         resetSession() {
             this.endSession();

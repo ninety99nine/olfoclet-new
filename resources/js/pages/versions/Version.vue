@@ -172,6 +172,22 @@
                 showSimulator: false
             };
         },
+        watch: {
+            showSimulator(isOpen) {
+                if (!isOpen) {
+                    // 1. Clear the red/green/blue path highlights
+                    this.versionState.clearSimulatorPath();
+
+                    // 2. Wait for the drawer animation (500ms) to finish, then re-organize
+                    setTimeout(() => {
+                        this.versionState.autoLayoutNodes({
+                            zoom: true,       // Re-center the camera
+                            autoLayout: true  // Snap nodes back to clean columns
+                        });
+                    }, 500);
+                }
+            }
+        },
         computed: {
             app() { return this.appState.app; },
             nodes() { return this.versionState.nodes; },
@@ -257,6 +273,7 @@
 </script>
 
 <style scoped>
+/* Keep your existing scrollbar styles */
 .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
 }
@@ -266,5 +283,17 @@
 .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 10px;
+}
+
+/* Target the Vue Flow internal node wrapper */
+:deep(.vue-flow__node) {
+    /* Smoothly animate the transform property (x/y position) */
+    transition: transform 1s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* CRITICAL: Disable transition while the user is manually dragging a node.
+   If you don't do this, the node will float slowly behind the mouse cursor. */
+:deep(.vue-flow__node.dragging) {
+    transition: none !important;
 }
 </style>

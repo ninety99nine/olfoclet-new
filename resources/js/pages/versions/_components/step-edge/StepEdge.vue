@@ -1,7 +1,7 @@
 <template>
     <BaseEdge
         :path="edgePath"
-        :class="['step-edge-path', { 'is-dynamic': data?.is_dynamic }]"
+        :class="['step-edge-path', { 'is-dynamic': data?.is_dynamic, 'is-active-path': isInSimulatorPath }]"
     />
     <EdgeLabelRenderer>
         <div
@@ -18,7 +18,9 @@
                 'nodrag nopan flex items-center backdrop-blur-sm rounded-full shadow-md border cursor-pointer select-none active:scale-95 transition-transform duration-200',
                 isRecentlyCopied
                     ? 'bg-indigo-600 border-indigo-600 shadow-indigo-200 px-3 py-1 gap-1.5'
-                    : 'bg-white/95 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-100/50 group/edge-label gap-0 py-1 px-2'
+                    : 'bg-white/95 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-100/50 group/edge-label gap-0 py-1 px-2',
+                // Highlight label if path is active
+                { 'border-indigo-500 shadow-indigo-100 ring-2 ring-indigo-500/20': isInSimulatorPath }
             ]"
         >
             <div class="relative w-3.5 h-3.5 flex items-center justify-center shrink-0">
@@ -27,7 +29,8 @@
                     <div v-else key="icons" class="flex items-center justify-center">
                         <AtSign
                             size="12"
-                            class="text-slate-400 group-hover/edge-label:scale-0 group-hover/edge-label:opacity-0 transition-all duration-200"
+                            :class="[isInSimulatorPath ? 'text-indigo-600' : 'text-slate-400']"
+                            class="group-hover/edge-label:scale-0 group-hover/edge-label:opacity-0 transition-all duration-200"
                         />
                         <Copy
                             size="10"
@@ -99,6 +102,9 @@ export default {
         return { isRecentlyCopied: false }
     },
     computed: {
+        isInSimulatorPath() {
+            return this.versionState.simulatorPathEdges.includes(this.id);
+        },
         feature() {
             const fid = this.data?.feature_id;
             return fid && this.versionState ? this.versionState.versionForm?.builder?.features?.[fid] : null;
